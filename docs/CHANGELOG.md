@@ -6,6 +6,21 @@
 
 ---
 
+## 0.1.0 (2026-09-06) — Birth
+
+**First tagged release.** Working end-to-end LM stack implemented from scratch.
+
+- Custom byte-level BPE tokenizer (vocab 800; round-trip exact; 6.84 B/token).
+- Transformer core (RoPE, causal MHA, RMSNorm, SwiGLU, PreNorm, tied head) with
+  float64 gradcheck-validated backward passes.
+- Training loop (warmup + cosine decay, weight decay, grad clip, leak-gated val).
+- Deterministic checkpoints + run manifests; bit-identical across thread counts.
+- Basic text generation + evaluation harness → checksum-tied JSON eval report.
+- Release notes: `docs/releases/v0.1.0.md`; artifact registry:
+  `experiments/phase0/artifact_registry.json`.
+
+---
+
 ## 0.0.1 (2026-09-06)
 
 **Initial research foundation.** Project scaffolding, documentation master spec, toy training scaffold.

@@ -1,0 +1,30 @@
+{
+  "ast:0.1.0": {
+    "semver": "0.1.0",
+    "commit": "v0.1.0",
+    "components": {
+      "tokenizer": {
+        "ver": "bpe-v1",
+        "artifact": "tokenizer/artifacts/toy_bpe.json",
+        "sha256": "e964964d3d658766684a76c052bcdbe926d1f21b9d099976e519dd2596bc3d01",
+        "path_in_repo": true
+      },
+      "model": {
+        "ver": "astra-toy-51k",
+        "artifact": "checkpoints/phase0/final.npz",
+        "sha256": "88e5bc5392733ce07268618d9dd0404c36cf0ee5eaa54ce5937bb2820043cae7",
+        "path_in_repo": false,
+        "note": "git-ignored per docs/ARCHITECTURE.md"
+      },
+      "data": {
+        "ver": "toy-1",
+        "manifest": "datasets/toy/manifest.json"
+      }
+    },
+    "eval": {
+      "report": "experiments/phase0/eval_report-v0.1.0.json",
+      "val_loss": 2.535182822102736,
+      "val_ppl": 12.618737621311706
+    }
+  }
+}

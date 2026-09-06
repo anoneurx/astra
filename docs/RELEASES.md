@@ -2,7 +2,7 @@
 
 > Release process, criteria, and documentation.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (as policy)** — first executed on 0.1.0 (`docs/releases/v0.1.0.md`); gates documented below.
 
 ---
 
