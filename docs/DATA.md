@@ -2,7 +2,7 @@
 
 > Data architecture: provenance, cleaning, splits, contamination control.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (Phase-0 subset)** — toy corpus pipeline (documents, split manifests, decontamination, n-gram leak gate, file hashes) implemented and measured; see docs/PHASE0.md EX-05 and `datasets/toy/corpus.py`.
 
 ---
 

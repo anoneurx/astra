@@ -2,7 +2,7 @@
 
 > Safety mechanisms for a continuously learning AI.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (Phase-0 subset)** — hygiene + contamination gates (sanitize, dedup, n-gram leak check, run manifests) are implemented, tested, and enforced during Phase 0 data generation/training; training aborts on detected leakage.
 
 ---
 

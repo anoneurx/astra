@@ -1,0 +1,31 @@
+{
+  "model": {
+    "vocab_size": 800,
+    "d_model": 64,
+    "n_layers": 2,
+    "n_heads": 4,
+    "d_head": 16,
+    "d_ffn": 128,
+    "max_seq_len": 64,
+    "rope_theta": 10000.0,
+    "eps": 1e-6,
+    "tie_embeddings": true
+  },
+  "training": {
+    "max_steps": 2000,
+    "peak_lr": 1e-3,
+    "min_lr": 1e-5,
+    "warmup_steps": 50,
+    "batch_seq": 8,
+    "weight_decay": 0.1,
+    "grad_clip": 1.0,
+    "val_every": 250
+  },
+  "tokenizer": "tokenizer/artifacts/toy_bpe.json",
+  "data": {
+    "train": "datasets/toy/train.txt",
+    "val": "datasets/toy/val.txt"
+  },
+  "seed": 42,
+  "out_dir": "checkpoints/phase0"
+}

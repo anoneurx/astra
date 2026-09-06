@@ -1,0 +1,38 @@
+{
+  "dataset": "toy",
+  "pipeline": "datasets/toy/corpus.py",
+  "license_stub": "generated synthetic text; no external copyright",
+  "cleaning_rules": "control-char scrub at build; n=13 token-gram decontamination (train overlap)",
+  "contamination_status": {
+    "n": 13,
+    "train_vs_val": "leak_free",
+    "train_vs_eval": "leak_free"
+  },
+  "splits": {
+    "train": {
+      "path": "datasets/toy/train.txt",
+      "sha256": "45c4bec98a643f119e3055a10c24f4bd3dd9cb2410b4f62e343c3e096c41f261",
+      "seed": 1,
+      "docs": 2000,
+      "bytes": 1307660
+    },
+    "val": {
+      "path": "datasets/toy/val.txt",
+      "sha256": "7909652e1f1df975b0d051690b9fdba1aabd74d635b037daf83314d4e1fba34d",
+      "seed": 2,
+      "docs_generated": 200,
+      "docs_kept": 163,
+      "docs_dropped": 37,
+      "bytes": 106516
+    },
+    "eval": {
+      "path": "datasets/toy/eval.txt",
+      "sha256": "4c2c2e974fa6a7c929055239b6448639978d8324df37186a6cb5cc7b68970299",
+      "seed": 3,
+      "docs_generated": 100,
+      "docs_kept": 75,
+      "docs_dropped": 25,
+      "bytes": 48554
+    }
+  }
+}

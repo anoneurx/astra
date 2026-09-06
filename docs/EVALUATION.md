@@ -2,7 +2,7 @@
 
 > Metrics, benchmark harness, gates.
 
-**STATUS: PROPOSED** — metric set fixed as policy; individual thresholds to be set from measurement.
+**STATUS: VALIDATED (harness + toy loop)** — `evaluation/evaluate.py` measured on the Phase-0 toy model (val_loss 2.535, accuracy 27.1%, ppl 12.6) and writes a versioned, checksum-tied JSON report; metric thresholds for later phases remain to be set from measurement.
 
 ---
 

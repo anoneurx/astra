@@ -2,7 +2,7 @@
 
 > The tokenizer subsystem: vocabulary, algorithm choice, encoding/decoding, and quality controls.
 
-**STATUS: PROPOSED** — algorithm choice below is the recommendation; a validation experiment is required in Phase 0.
+**STATUS: VALIDATED (as policy)** — byte-level BPE was implemented from scratch and validated in Phase 0 (docs/PHASE0.md EX-01): round-trip exact on 100% of strings incl. lone surrogates, 6.84 bytes/token vs raw bytes on the toy corpus; report at `experiments/phase0/tokenizer_report.md`.
 
 ---
 

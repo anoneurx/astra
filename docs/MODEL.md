@@ -2,7 +2,7 @@
 
 > The neural architecture of Astra's Transformer-based language model.
 
-**STATUS: PROPOSED** — Architecture components listed below are the design baseline. Individual design choices (normalization, activation, positional encoding) are marked for empirical validation.
+**STATUS: VALIDATED (as design)** — architecture baseline implemented in the NumPy reference; component mechanics (embeddings, RoPE, causal attention, RMSNorm, SwiGLU FFN, PreNorm residuals, tied head) were empirically validated at toy scale in Phase 0 (docs/PHASE0.md, H0.2–H0.5) before scaling.
 
 ---
 
@@ -47,7 +47,8 @@ The design is intentionally **scalable from 100M to multi-billion parameters** b
 - Non-tied output head variant: `Linear(d_model, vocab_size)` on final norm output (config `tie_embeddings: true` default).
 - Embedding init: normal with small std relative to width to avoid variance blowup at forward.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (mechanics; toy scale)** — tied/untied head path gradient verified by
+finite-difference gradcheck (H0.2) and toy training reached target loss (H0.3).
 
 ### 3.2 Positional Encoding (RoPE)
 
@@ -61,7 +62,9 @@ Rot(q, pos) = apply rotation by pos*θ_i per pair
 
 Default `rope_theta = 10000`, extendable for length generalization. Config must record θ base, whether `freqs_cis` are precomputed, and truncation strategy for long context.
 
-**STATUS: PROPOSED** — ablation vs learned absolute positional embeddings planned at Phase 3.
+**STATUS: VALIDATED (mechanics; toy scale)** — RoPE forward/backward agree with
+finite differences (H0.2); token positions correctly permuted under training (H0.3).
+Ablation vs learned absolute positional embeddings still planned at Phase 3.
 
 ### 3.3 Attention
 
@@ -70,7 +73,9 @@ Default `rope_theta = 10000`, extendable for length generalization. Config must 
 - Causal mask enforced. Attention bias: none (masking only).
 - Dropout on attention probs during training specified in config (default 0.0 for pretraining of small models; can be enabled).
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (mechanics; toy scale)** — causal MHA, masking-only bias, and
+tied-head gradient paths pass finite-difference gradcheck (H0.2).
+GQA/KV-cache remain later-scale research.
 
 ### 3.4 Normalization (RMSNorm)
 
@@ -80,7 +85,8 @@ RMSNorm(x) = x / sqrt(mean(x^2) + eps) * γ
 
 - `eps` configurable (default 1e-6). Applied before attention and before FFN (PreNorm blocks).
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (mechanics; toy scale)** — RMSNorm forward/backward agreed with
+finite differences for arbitrary inputs (dense-gradient test, 1.5e-9 max error, H0.2).
 
 ### 3.5 Feed-Forward Network (SwiGLU)
 
@@ -92,20 +98,24 @@ FFN(x):
 ```
 with `d_out = 2/3 * 4 * d_model` (LLaMA-style hidden factor). Standard SwiGLU has internal dimensions ~ `8/3 · d_model` total.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (mechanics; toy scale)** — SwiGLU gate/up/down gradient paths
+(the two Phase-0 backward bugs) pass finite-difference gradcheck (H0.2); LLaMA-style
+8/3·d hidden factor remains a larger-scale target.
 
 ### 3.6 Residual Connections
 
 - PreNorm: `x_out = x + SubBlock(Norm(x))` for both attention and FFN sub-blocks.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (mechanics; toy scale)** — PreNorm residual paths incl. per-block
+norm/input routing verified by finite-difference gradcheck (H0.2).
 
 ### 3.7 Output Head
 
 - Final norm, then `Linear(d_model, vocab_size)`.
 - Optional weight tying between head and `wte` (default tied in v1 for parameter efficiency); untied variant under research.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (mechanics; toy scale)** — final-norm + Linear head with default
+weight tying trained to target loss (H0.3); untied variant under research.
 
 ---
 
