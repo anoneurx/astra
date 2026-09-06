@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Rust / Cargo
+target/
+Cargo.lock
+
+# Project data artifacts (never committed — see docs/DATA.md, docs/INSTALLATION.md)
+checkpoints/
+datasets/.cache/
+datasets/*/*.bin
+datasets/*/*.jsonl
+datasets/*/*.parquet
+tokenizer/artifacts/
+memory/store/
+benchmarks/results/
+
+# Experiments / logs
+experiments/logs/
+*.log
+
+# Tooling
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Secrets (never commit)
+.env
+*.pem
+*.key
+configs/*secret*.yaml
