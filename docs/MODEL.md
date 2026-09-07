@@ -60,11 +60,14 @@ d = d_head
 Rot(q, pos) = apply rotation by pos*θ_i per pair
 ```
 
-Default `rope_theta = 10000`, extendable for length generalization. Config must record θ base, whether `freqs_cis` are precomputed, and truncation strategy for long context.
+Default `rope_theta = 10000`. RoPE angles are computed lazily and extend past
+`max_seq_len` on the fly (no truncation up to any T); the causal mask grows
+dynamically, so inference can decode beyond the configured context.
 
 **STATUS: VALIDATED (mechanics; toy scale)** — RoPE forward/backward agree with
 finite differences (H0.2); token positions correctly permuted under training (H0.3).
-Ablation vs learned absolute positional embeddings still planned at Phase 3.
+Config `pos_type="learned"` (absolute learned embeddings) is implemented and
+gradcheck-tested; Rust ablation completed at Phase 3 (`experiments/ablations/`).
 
 ### 3.3 Attention
 
@@ -74,8 +77,10 @@ Ablation vs learned absolute positional embeddings still planned at Phase 3.
 - Dropout on attention probs during training specified in config (default 0.0 for pretraining of small models; can be enabled).
 
 **STATUS: VALIDATED (mechanics; toy scale)** — causal MHA, masking-only bias, and
-tied-head gradient paths pass finite-difference gradcheck (H0.2).
-GQA/KV-cache remain later-scale research.
+tied-head gradient paths pass finite-difference gradcheck (H0.2). KV-cache decode
+implemented in `astra/inference/decoder.py` (Python) and verified to match
+reference logits (~1e-7); Rust KV-cache remains a later Phase-3 milestone.
+GQA remains later-scale research.
 
 ### 3.4 Normalization (RMSNorm)
 
@@ -84,9 +89,12 @@ RMSNorm(x) = x / sqrt(mean(x^2) + eps) * γ
 ```
 
 - `eps` configurable (default 1e-6). Applied before attention and before FFN (PreNorm blocks).
+- Config `norm_type="layernorm"` selects a full LayerNorm variant (with bias), used
+  in the Phase-3 RMSNorm-vs-LayerNorm ablation.
 
 **STATUS: VALIDATED (mechanics; toy scale)** — RMSNorm forward/backward agreed with
 finite differences for arbitrary inputs (dense-gradient test, 1.5e-9 max error, H0.2).
+LayerNorm bias-gradient path passes finite-difference gradcheck (Phase 3).
 
 ### 3.5 Feed-Forward Network (SwiGLU)
 
@@ -97,9 +105,12 @@ FFN(x):
     down = (gate ⊙ up) W_d      # d_in
 ```
 with `d_out = 2/3 * 4 * d_model` (LLaMA-style hidden factor). Standard SwiGLU has internal dimensions ~ `8/3 · d_model` total.
+- Config `ffn_type="gelu"` selects a 2-projection GELU(tanh) FFN (no gate/up
+  split) for the Phase-3 SwiGLU-vs-GELU ablation.
 
 **STATUS: VALIDATED (mechanics; toy scale)** — SwiGLU gate/up/down gradient paths
-(the two Phase-0 backward bugs) pass finite-difference gradcheck (H0.2); LLaMA-style
+(the two Phase-0 backward bugs) pass finite-difference gradcheck (H0.2); the GELU
+variant passes finite-difference gradcheck for both projections (Phase 3). LLaMA-style
 8/3·d hidden factor remains a larger-scale target.
 
 ### 3.6 Residual Connections
@@ -183,6 +194,9 @@ Full configs live in `configs/`.
 - Attention alternatives, efficient attention, MQA/GQA, sliding windows — see `docs/RESEARCH.md`.
 - Memory-augmented attention (research, Phase 9).
 - Any architecture change requires a benchmark-backed decision record.
+- Normalization/FFN/positional variants are now config-selectable
+  (`norm_type`/`ffn_type`/`pos_type`) and ablation-ready via `tools/ablate.py`
+  (see `experiments/ablations/`).
 
 ---
 

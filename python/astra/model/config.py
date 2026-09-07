@@ -17,12 +17,21 @@ class ModelConfig:
     rope_theta: float = 10000.0
     eps: float = 1e-6
     tie_embeddings: bool = True
+    norm_type: str = "rmsnorm"        # rmsnorm | layernorm
+    ffn_type: str = "swiglu"          # swiglu | gelu
+    pos_type: str = "rope"            # rope | learned
 
     def __post_init__(self) -> None:
         if self.d_model % self.n_heads != 0:
             raise ValueError("d_model must be divisible by n_heads")
         if self.d_head * self.n_heads != self.d_model:
             raise ValueError("d_head * n_heads must equal d_model")
+        if self.norm_type not in ("rmsnorm", "layernorm"):
+            raise ValueError(f"unknown norm_type {self.norm_type!r}")
+        if self.ffn_type not in ("swiglu", "gelu"):
+            raise ValueError(f"unknown ffn_type {self.ffn_type!r}")
+        if self.pos_type not in ("rope", "learned"):
+            raise ValueError(f"unknown pos_type {self.pos_type!r}")
 
     @property
     def name(self) -> str:

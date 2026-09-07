@@ -31,8 +31,8 @@ param-count: ## parameter count for the Phase 0 model
 
 generate: ## interactive text generation (prompt Astra in terminal)
 	$(PYTHON) inference/generate.py \
-	  --checkpoint checkpoints/phase0/final.npz \
-	  --config configs/toy_pretrain.json
+	  --checkpoint checkpoints/name/resumed/final.npz \
+	  --config configs/toy_name.json
 
 birth-test: ## run the Astra 0.1 Birth Test (full pipeline verification)
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/birth_test.py

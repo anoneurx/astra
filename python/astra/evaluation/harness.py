@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-from astra.evaluation.metrics import generate, next_token_accuracy, repetition_fraction
+from astra.evaluation.metrics import generate, repetition_fraction
 from astra.model.core import LiteLM
 from astra.training.checkpoint import load_checkpoint
 from astra.training.data import Corpus, SeqStream

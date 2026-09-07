@@ -2,7 +2,37 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation implemented and tested (Astra 0.2.0).
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0) and Phase-3 core components (Astra 0.3.0) implemented and tested.
+
+---
+
+## 0.3.0 (2026-09-07) — Core
+
+**Phase-3 core-improvement release: variant transformer, KV-cache inference,
+extended context, quantization preview, benchmark harness v1.**
+
+- **Transformer variants** (`astra/model/core.py`, `config.py`): `norm_type`
+  (rmsnorm default / layernorm), `ffn_type` (swiglu default / gelu), `pos_type`
+  (rope default / learned). Default config is bit-identical to 0.2.0 (logits,
+  loss, all overlapping grads); every variant backward is float64-gradchecked.
+- **Ablation rig** (`tools/ablate.py`): trains baseline-vs-variant and writes
+  `experiments/ablations/` comparison summaries + `index.json`.
+- **Inference service (Python)** (`astra/inference/decoder.py`): KV cache grows
+  on demand; `decode_token` / `decode` with temperature / top-k / top-p /
+  sliding-window decode matches reference per-position logits (~1e-7).
+- **Context handling**: RoPE angles + causal mask extend on-the-fly past
+  `max_seq_len`; `generate(..., context_window=...)` added to `metrics.py`.
+- **Quantization preview** (`astra/quantize.py`, `tools/quantize.py`): in-place
+  fp16 / bf16 / int8 (per-tensor symmetric) with bounded-error report; int8
+  quarters weights.
+- **Benchmark harness v1** (`astra/evaluation/bench.py`, `tools/benchmark.py`,
+  `benchmarks/suites/core-basic.json`): manifest suites, pluggable scorers,
+  thresholds, sha256-tied JSON reports; `core-basic` PASS 100% on both the
+  phase-0 checkpoint and the Astra-name fine-tune (`checkpoints/name/resumed/final.npz`).
+- **Phase-3 tests**: variant gradchecks, decoder equivalence, quantize error
+  bounds, benchmark gates + determinism. **69/69 tests pass**; birth test PASS
+  (val_loss 3.9158 unchanged). Ruff clean on new files.
+- Release notes: `docs/releases/v0.3.0.md`.
 
 ---
 

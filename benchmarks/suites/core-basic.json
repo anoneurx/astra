@@ -1,0 +1,32 @@
+{
+  "suite": "core-basic",
+  "version": 1,
+  "status": "ADVISORY",
+  "items": [
+    {
+      "id": "val_ppl",
+      "type": "lm-quality",
+      "scorer": "val_ppl",
+      "args": {"seed": 0},
+      "expected_metric": "ppl",
+      "threshold": {"op": "<", "value": 5.0},
+      "note": "frozen val split, never opened during training"
+    },
+    {
+      "id": "decode_tokens_per_sec",
+      "type": "resource",
+      "scorer": "decode_tokens_per_sec",
+      "args": {"n_tokens": 100, "seed": 0},
+      "expected_metric": "tok/s",
+      "threshold": {"op": ">", "value": 50.0}
+    },
+    {
+      "id": "repetition_fraction",
+      "type": "sampling-sanity",
+      "scorer": "repetition_fraction",
+      "args": {"n_tokens": 100, "seed": 0},
+      "expected_metric": "self-4gram-repeat-frac",
+      "threshold": {"op": "<", "value": 0.5}
+    }
+  ]
+}

@@ -23,6 +23,7 @@ benchmarks/results/
 # Experiments / logs
 experiments/logs/
 experiments/runs/
+experiments/ablations/
 *.log
 
 # Tooling
