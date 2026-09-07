@@ -71,7 +71,29 @@ class AdamW:
 
     @staticmethod
     def _decays(name: str) -> bool:
-        return not (name.endswith(".ln1") or name.endswith(".ln2") or name == "ln_f")
+        return not (name.endswith((".ln1", ".ln2")) or name == "ln_f")
+
+
+OPTIMIZER_REGISTRY: dict[str, type] = {"adamw": AdamW}
+SCHEDULE_REGISTRY: dict[str, type] = {"cosine": CosineSchedule}
+
+
+def build_optimizer(name: str, model, **kwargs) -> AdamW:
+    """Resolve an optimizer by registry key (docs/TRAINING.md § 3)."""
+    try:
+        cls = OPTIMIZER_REGISTRY[name]
+    except KeyError:
+        raise KeyError(f"unknown optimizer {name!r}; available: {sorted(OPTIMIZER_REGISTRY)}") from None
+    return cls(model, **kwargs)
+
+
+def build_schedule(name: str, **kwargs) -> CosineSchedule:
+    """Resolve a learning-rate schedule by registry key."""
+    try:
+        cls = SCHEDULE_REGISTRY[name]
+    except KeyError:
+        raise KeyError(f"unknown scheduler {name!r}; available: {sorted(SCHEDULE_REGISTRY)}") from None
+    return cls(**kwargs)
 
 
 def grad_norm(model) -> float:

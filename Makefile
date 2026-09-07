@@ -1,7 +1,7 @@
 PYTHON ?= python3
 THREADS ?= 8
 
-.PHONY: test check tokenizer train eval leak param-count help
+.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments help decontaminate
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-12s %s\n", $$1, $$2}'
@@ -28,6 +28,17 @@ leak-check: ## cross-split n-gram contamination gate (EX-05)
 
 param-count: ## parameter count for the Phase 0 model
 	$(PYTHON) tools/param_count.py --config configs/toy_pretrain.json
+
+generate: ## interactive text generation (prompt Astra in terminal)
+	$(PYTHON) inference/generate.py \
+	  --checkpoint checkpoints/phase0/final.npz \
+	  --config configs/toy_pretrain.json
+
+birth-test: ## run the Astra 0.1 Birth Test (full pipeline verification)
+	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/birth_test.py
+
+experiments: ## query the recorded experiment store
+	$(PYTHON) tools/experiments.py list
 
 decontaminate: ## filter split docs sharing a 13-gram with train (hygiene step)
 	$(PYTHON) datasets/toy/corpus.py --decontaminate \

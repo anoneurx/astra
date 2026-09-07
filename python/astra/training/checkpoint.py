@@ -28,14 +28,15 @@ def save_checkpoint(
     payload = {}
     for name, w, _g in all_params(model):
         payload[f"w:{name}"] = w
-    for key in ("m", "v"):
-        for name, arr in getattr(opt, key).items():
-            payload[f"{key}:{name}"] = arr
+    if opt is not None:
+        for key in ("m", "v"):
+            for name, arr in getattr(opt, key).items():
+                payload[f"{key}:{name}"] = arr
     np.savez_compressed(path, **payload)
     manifest = {
         **meta,
         "step": step,
-        "opt_t": opt.t,
+        "opt_t": opt.t if opt is not None else 0,
         "loss_hist": loss_hist,
         "params": model.num_params,
     }

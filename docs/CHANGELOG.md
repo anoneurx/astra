@@ -2,7 +2,28 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`).
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation implemented and tested (Astra 0.2.0).
+
+---
+
+## 0.2.0 (2026-09-07) — Training Foundation
+
+**Phase-2 hardening of the training pipeline: reproducible, configurable, audited.**
+
+- **Optimizer/scheduler registry** (`astra/training/optim.py`): `OPTIMIZER_REGISTRY`,
+  `SCHEDULE_REGISTRY`, `build_optimizer`/`build_schedule`; config-driven via
+  `optimizer`/`scheduler` keys. Unknown names fail fast.
+- **Gradient accumulation** (`accum_steps` in `astra/training/loop.py`): gradients
+  accumulated across micro-batches, averaged before clip/step; `accum_steps=1` is
+  bit-identical to the Phase-0 loop.
+- **Experiment tracking** (`astra/experiments/store.py`, `tools/experiments.py`):
+  `ExperimentStore` with `list`/`show`/`query`; every `train()` run auto-logged.
+- **Run-manifest audit fields**: `git_commit` + `environment` recorded in
+  `report.json` and checkpoint manifests.
+- **Phase-2 exit tests**: same-seed reproduction (bit-identical trajectory),
+  scheduler boundary/clamp/registry, and gradient-accumulation equivalence
+  (N micro-batches ÷ N == one macro batch). **42/42 tests pass**.
+- Release notes: `docs/releases/v0.2.0.md`.
 
 ---
 

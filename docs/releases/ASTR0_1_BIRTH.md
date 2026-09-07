@@ -27,7 +27,7 @@ Every component is defined below with its specification, implementation, and mea
 | Round-trip exact | **100%** (incl. lone surrogates, CJK, emoji, control chars) |
 | Unknown tokens | 0 (byte-level guarantees full coverage) |
 
-**Artifact:** `tokenizer/artifacts/toy_bpe.json` — SHA-256 `e964964d3d658766684a76c052bcdbe926d1f21b9d099976e519dd2596bc3d`.
+**Artifact:** `tokenizer/artifacts/toy_bpe.json` — SHA-256 `e964964d3d658766684a76c052bcdbe926d1f21b9d099976e519dd2596bc3d01`.
 
 **Correctness contract** (`tests/test_tokenizer.py`): round-trip identity over ASCII, accented Latin, CJK, RTL, emoji, control chars, lone surrogates, null bytes, very long strings; determinism; version stability.
 
@@ -47,7 +47,7 @@ Every component is defined below with its specification, implementation, and mea
 **Key design decisions:**
 - RoPE gives length generalization without learned position parameters.
 - Tied head reduces parameter count and improves parameter efficiency.
-- Initialization: He-normal for Linear layers (`std = sqrt(6/(fan_in+fan_out))`), `std=0.02` for embeddings.
+- Initialization: He-uniform for Linear layers (`uniform(-limit, limit)` with `limit = sqrt(6/(fan_in+fan_out))`), `normal(0, 0.02)` for embeddings.
 
 **Measured:** Embedding lookup + RoPE rotation + tied-head gradient paths all pass float64 finite-difference gradcheck (H0.2, max error 1.5e-9).
 

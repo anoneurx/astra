@@ -2,7 +2,7 @@
 
 > Hardware recommendations by workload. Designed to be consumer-hardware-friendly for early phases.
 
-**STATUS: PROPOSED** — figures updated as measurements land.
+**STATUS: VALIDATED (Phase-0 / toy subset)** — toy budgets measured (see §4); GPU-based and Astra-100M+ budgets remain targets until Phases 1–2 measurements land.
 
 ---
 
@@ -98,6 +98,24 @@ Planned tables (populated from real runs):
 - Peak VRAM per model/config.
 - Checkpoint size, shard I/O rates.
 - CPU decode t/s per model (Rust runtime).
+
+### Phase 0 / 0.1.0 toy measurements (NumPy reference, 8-core x86_64, no GPU)
+
+Measured 2026-09-06 on `docs/releases/v0.1.0.md` (astra-toy-51k, 133,440 params,
+`configs/toy_pretrain.json`):
+
+| quantity | value |
+|---|---|
+| Model fp32 footprint | 0.53 MB (133,440 params × 4 B) |
+| Training throughput | 4,051 tok/s (2000 steps, 252 s, 8 threads; batch 8×64) |
+| Reproducibility | bit-identical loss trajectories at 1 vs 8 threads |
+| Training peak RSS | ~90 MB (`/proc` VmHWM, 60-step probe) |
+| Evaluation peak RSS | ~196 MB (NumPy import + model + one batch) |
+| CPU decode (reference inference) | 92–276 tok/s (load-dependent) |
+| Checkpoint size | `final.npz` ≈ 1.45 MB (133k params × 4 B + optimizer state) |
+
+GPU/hardware budgets for Astra-100M and larger remain targets until Phases 1–2
+measurements land (see §§ 2.2–2.4).
 
 **STATUS: RESEARCH** — populate from Phase 1/2 measurements before releasing hardware guidance as validated numbers.
 

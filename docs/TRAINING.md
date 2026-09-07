@@ -2,7 +2,7 @@
 
 > The complete training pipeline specification.
 
-**STATUS: PROPOSED** — pipeline design decided; individual components to be validated per phase.
+**STATUS: VALIDATED (Phase 0 + Phase 2 Training Foundation)** — training-loop, scheduling, checkpointing, reproducibility contract, and leak-gated evaluation validated on the Phase-0 toy model (docs/PHASE0.md H0.3–H0.4, Astra 0.1.0). Phase-2 foundation validated: config-driven runs, optimizer/scheduler registry, gradient accumulation, experiment tracking, run manifests, and reproduction + scheduler + accumulation-equivalence tests (docs/releases/v0.2.0.md). Remaining PROPOSED: LR sweeps, mixed precision, distributed training.
 
 ---
 

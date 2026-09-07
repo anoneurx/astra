@@ -128,7 +128,7 @@ Target stable training at the smallest scale first. Baseline (from standard prac
 
 Revisit with a small initialization sweep experiment at Phase 1.
 
-**STATUS: PROPOSED**
+**STATUS: VALIDATED (toy scale)** — default He-normal + embed std 1/√d init used for Astra 0.1.0 training (val CE 2.535); larger-scale ablation planned at Phase 1.
 
 ---
 

@@ -17,9 +17,14 @@
     "min_lr": 1e-5,
     "warmup_steps": 50,
     "batch_seq": 8,
+    "accum_steps": 1,
+    "optimizer": "adamw",
+    "scheduler": "cosine",
     "weight_decay": 0.1,
     "grad_clip": 1.0,
-    "val_every": 250
+    "val_every": 250,
+    "val_shards": 4,
+    "experiment_store": "experiments/runs"
   },
   "tokenizer": "tokenizer/artifacts/toy_bpe.json",
   "data": {

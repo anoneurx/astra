@@ -29,6 +29,7 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=None, help="override data seed in config")
     ap.add_argument("--steps", type=int, default=None, help="override max_steps")
     ap.add_argument("--out", default=None, help="override out_dir")
+    ap.add_argument("--experiments", default=None, help="override experiment_store dir")
     ap.add_argument("--resume", default=None, help="resume from checkpoint .npz")
     args = ap.parse_args()
 
@@ -39,6 +40,8 @@ def main() -> None:
     if args.steps:
         tr = {**tr, "max_steps": args.steps}
     out_dir = args.out or raw["out_dir"]
+    if args.experiments:
+        tr = {**tr, "experiment_store": args.experiments}
 
     tok = ByteLevelBPE.load(raw["tokenizer"])
     cfg.vocab_size = len(tok)

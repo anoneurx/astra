@@ -1,9 +1,12 @@
-"""Shared utilities: hashing, seeding, token stats."""
+"""Shared utilities: hashing, seeding, token stats, environment recording."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
+import platform
+import subprocess
 from typing import Any
 
 import numpy as np
@@ -54,3 +57,37 @@ def write_json(path: str, obj: Any) -> None:
 def read_json(path: str) -> Any:
     with open(path) as f:
         return json.load(f)
+
+
+def git_commit() -> str:
+    """Return the current git commit (short hash, dirty marker appended).
+
+    Falls back to "unknown" if git is unavailable or the tree is not a repo.
+    """
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5, check=True,
+        )
+        commit = head.stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if dirty.returncode == 0 and dirty.stdout.strip():
+            return f"{commit}-dirty"
+        return commit
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return "unknown"
+
+
+def environment() -> dict[str, Any]:
+    """Capture runtime/hardware info for run manifests and eval reports."""
+    return {
+        "python": platform.python_version(),
+        "numpy": np.__version__,
+        "machine": platform.machine(),
+        "system": platform.system(),
+        "cpu_count": os.cpu_count(),
+        "openblas_threads": os.environ.get("OPENBLAS_NUM_THREADS", "unset"),
+    }

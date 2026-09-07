@@ -4,6 +4,10 @@
 
 **STATUS: PROPOSED** (phase scheduling and content are targets, not guarantees)
 
+**STATUS: VALIDATED** — Phase 0 (Astra 0.0.1) research and Phase 2 (Astra 0.2.0)
+Training Foundation completed per their exit criteria (`docs/releases/v0.0.1.md`
+status `v0.1.0.md`, and `docs/releases/v0.2.0.md`).
+
 ---
 
 ## Version Mapping
@@ -60,6 +64,10 @@ Version semantics are defined in `docs/VERSIONING.md`. Patch-level releases (0.0
 - **Tests:** Reproduction test (same-seed determinism), scheduler tests, accumulation equivalence tests.
 - **Risks:** Over-engineering; determinism-difficulty on new hardware.
 - **Exit criteria:** Training Foundation documented and used for all subsequent runs.
+- **STATUS: COMPLETE (Astra 0.2.0)** — exit criteria met (reproduction, scheduler,
+  and accumulation-equivalence tests; config-driven; experiment store queryable).
+  Release notes: `docs/releases/v0.2.0.md`. Deferred within phase: LR sweeps,
+  mixed precision, distributed hooks (`docs/TRAINING.md` §§ 3–4, 2.12).
 
 ## Phase 3 — Stable Neural Core
 

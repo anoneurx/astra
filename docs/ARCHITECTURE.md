@@ -4,6 +4,7 @@
 >
 > Status markers used throughout:
 > - **STATUS: PROPOSED** — Design finalized as a written decision, not yet experimentally validated.
+> - **STATUS: VALIDATED (as design)** — Design finalized AND experimentally validated at toy scale (Astra 0.1.0, docs/PHASE0.md).
 > - **STATUS: VALIDATED** — Backed by a reproducible experiment or measurement in this repository.
 > - **STATUS: RESEARCH** — Open research question; may be speculative.
 
@@ -349,12 +350,35 @@ Directory responsibilities are elaborated in the appendix of this document and e
 |---|---|
 | Project identity | VALIDATED (as policy) |
 | Rejection of in-place weight modification | VALIDATED (as policy) |
-| Technology stack | PROPOSED |
-| High-level architecture | PROPOSED |
-| Transformer-based model | DESIGN DECIDED — module configs vary per scale |
+| Technology stack | VALIDATED (as policy) — Python reference implementation chosen, implemented, and validated (ADR-0002, Astra 0.1.0) |
+| High-level architecture | VALIDATED (as design) — pipeline, modules, and repo structure implemented per spec; validated at toy scale (Astra 0.1.0) |
+| Transformer-based model | DESIGN DECIDED + validated at toy scale (Astra 0.1.0, H0.2–H0.4) — module configs vary per scale |
 | Memory engine design | PROPOSED (Phase 4+) |
 | Learning engine design | RESEARCH (Phase 5+) |
 | Self-improvement loop | RESEARCH (Phase 6+) |
+
+### Phase 0 / 0.1.0 components (implementation-tier)
+
+| Component | Status (evidence) |
+|---|---|
+| Tokenizer (byte-level BPE) | VALIDATED — `docs/TOKENIZER.md`, EX-01 (round-trip exact, 6.84 B/token) |
+| Data pipeline + manifests | VALIDATED — `docs/DATA.md`, EX-05 (decontamination, leak-free splits) |
+| Training + reproducibility contract | VALIDATED — `docs/TRAINING.md`, EX-03/04 (CE 2.535, bit-identical) |
+| Evaluation harness | VALIDATED — `docs/EVALUATION.md`, EX-06 (checksum-tied JSON report) |
+
+### Phase 2 / 0.2.0 Training Foundation (implementation-tier)
+
+| Component | Status (evidence) |
+|---|---|
+| Config-driven runs | VALIDATED — `training/train.py` + `configs/toy_pretrain.json` |
+| Optimizer/scheduler registry | VALIDATED — `astra/training/optim.py` (`OPTIMIZER_REGISTRY`, `SCHEDULE_REGISTRY`, `build_optimizer`/`build_schedule`), exercised by registry tests |
+| Gradient accumulation | VALIDATED — `accum_steps` in `astra/training/loop.py`; equivalence test proves N micro-batches ÷ N == one macro batch; `accum_steps=1` bit-identical |
+| Experiment tracking | VALIDATED — `astra/experiments/store.py` (`ExperimentStore`) + `tools/experiments.py` CLI, queryable |
+| Run manifests + audit env | VALIDATED — `git_commit`/`environment` recorded in `report.json`/`final.manifest.json` |
+| Reproduction guarantee | VALIDATED — same-seed determinism test (bit-identical loss trajectory) |
+| LR sweeps / mixed precision / distributed | PROPOSED — Phase 2+ research (docs/TRAINING.md §§ 3–4, 2.12) |
+| Safety & hygiene gates | VALIDATED — `docs/SAFETY.md` (sanitize, dedup, leak gate, abort-on-contamination) |
+| Reference inference / generation | VALIDATED — `generation` path driven by `evaluation/evaluate.py`, Astra 0.1.0 |
 
 ---
 
