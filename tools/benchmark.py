@@ -51,6 +51,7 @@ def main() -> None:
     suites = args.suites or [p.stem for p in sorted(suite_dir.glob("*.json"))]
 
     all_ok = True
+    active_count = 0
     for name in suites:
         suite_path = suite_dir / f"{name}.json"
         if not suite_path.exists():
@@ -61,8 +62,16 @@ def main() -> None:
         out_json = str(ckpt_dir / "result.json")
         report, passed = run_suite(cfg, args.checkpoint, val_corpus, str(suite_path), out_json)
         summary = {i["id"]: (i["metric"], i["threshold_met"]) for i in report["items"]}
-        print(f"[benchmark] {name}: {'PASS' if passed else 'FAIL'}  {json.dumps(summary)}")
-        all_ok = all_ok and passed
+        status = report.get("suite_status", "ADVISORY")
+        print(f"[benchmark] {name} [{status}]: {'PASS' if passed else 'FAIL'}  {json.dumps(summary)}")
+        if status == "ACTIVE":
+            active_count += 1
+            all_ok = all_ok and passed
+        elif not passed:
+            print(f"[benchmark] note: {name} is {status} (not a promotion gate)")
+    if active_count == 0:
+        print("[benchmark] WARNING: no ACTIVE(thresholded) suites run; cannot promote")
+        all_ok = False
     print(f"[benchmark] overall: {'PASS' if all_ok else 'FAIL'}")
     sys.exit(0 if all_ok else 1)
 

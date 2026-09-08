@@ -129,6 +129,7 @@ def run_suite(
     report = {
         "suite": suite["suite"],
         "suite_version": suite.get("version", 1),
+        "suite_status": suite.get("status", "ADVISORY"),
         "checkpoint": ckpt_path,
         "checkpoint_sha256": sha256_file(ckpt_path),
         "model_step": step,

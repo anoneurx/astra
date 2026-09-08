@@ -113,6 +113,8 @@ Measured 2026-09-06 on `docs/releases/v0.1.0.md` (astra-toy-51k, 133,440 params,
 | Evaluation peak RSS | ~196 MB (NumPy import + model + one batch) |
 | CPU decode (reference inference) | 92–276 tok/s (load-dependent) |
 | CPU decode (KV-cache decoder) | 182.9 tok/s (measured 2026-09-07, phase-0 ckpt) |
+| CPU decode (KV-cache decoder) | 543.9 tok/s (measured 2026-09-08, `astra-name`, core-basic gate run) |
+| HTTP service (`service/inference.py`) | stdlib ThreadingHTTPServer; per-request KV cache; single-threaded decode behind server threads |
 | Quantized weights | fp16: 0.27 MB; int8: 0.13 MB vs 0.53 MB fp32 (worst-error bounded) |
 | Checkpoint size | `final.npz` ≈ 1.45 MB (133k params × 4 B + optimizer state) |
 

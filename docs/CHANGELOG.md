@@ -6,6 +6,31 @@
 
 ---
 
+## 0.4.0 (2026-09-08) — Phase-3 Tail / Registry & Service
+
+**Incremental release closing the Phase-3 productization tail: model registry
+v1, inference service skeleton (Python + Rust), ACTIVE benchmark gates.**
+
+- **Model registry v1** (`astra/registry.py`, `tools/registry.py`): immutable
+  artifact registry (semver, commit, content-addressed config_id, data/eval
+  manifest ids, sha256); `register` refuses silent re-registration unless
+  `--force`; `verify` / `show` / `list`; JSON persistence. Registered
+  `astra-name 0.4.0` (sha256 `dd9432cc…310`) and `astra-phase0 0.3.0`.
+- **Inference service (Python)** (`service/inference.py`): stdlib HTTP
+  `ThreadingHTTPServer` over the KV-cache decoder — `GET /health`,
+  `POST /generate`, stateless per request.
+- **Inference service (Rust skeleton)** (`service/rust`, crate `astra-rt`):
+  dependency-free SHA-256 checkpoint fingerprinting + verify CLI; cross-checks
+  the Python registry sha.
+- **Benchmark gates ACTIVE**: `core-basic` v2 promoted ADVISORY→ACTIVE with
+  adopted thresholds (`threshold_decision` in manifest); gate passes only when
+  all ACTIVE suites pass.
+- **Phase-3 tail tests**: 12 registry + 9 service tests. **90/90 tests pass**;
+  ruff clean; Rust `cargo test` 3/3. Birth test PASS (val_loss 3.9158).
+- Release notes: `docs/releases/v0.4.0.md`.
+
+---
+
 ## 0.3.0 (2026-09-07) — Core
 
 **Phase-3 core-improvement release: variant transformer, KV-cache inference,

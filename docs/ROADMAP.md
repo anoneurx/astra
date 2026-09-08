@@ -5,10 +5,12 @@
 **STATUS: PROPOSED** (phase scheduling and content are targets, not guarantees)
 
 **STATUS: VALIDATED** — Phase 0 (Astra 0.0.1) research, Phase 2 (Astra 0.2.0)
-Training Foundation, and the Phase-3 (Astra 0.3.0) core components completed per
-their exit criteria/status (`docs/releases/v0.0.1.md`, `v0.1.0.md`,
-`v0.2.0.md`, and `v0.3.0.md`). Phase 3 (Stable Neural Core) overall remains
-IN PROGRESS until the full-size core model release.
+Training Foundation, the Phase-3 (Astra 0.3.0) core components, and the
+Phase-3 productization tail (Astra 0.4.0: registry v1, inference service
+skeleton, ACTIVE benchmark gates) completed per their exit criteria/status
+(`docs/releases/v0.0.1.md`, `v0.1.0.md`, `v0.2.0.md`, `v0.3.0.md`, and
+`v0.4.0.md`). Phase 3 (Stable Neural Core) overall remains IN PROGRESS until
+the full-size core model release.
 
 ---
 
@@ -82,16 +84,22 @@ Version semantics are defined in `docs/VERSIONING.md`. Patch-level releases (0.0
 - **Tests:** Benchmark reproducibility, registry round-trip, inference equivalence Python↔Rust.
 - **Risks:** Long compute; benchmark leakage from eval data.
 - **Exit criteria:** Astra 0.3 released with model artifact + eval report + limitations doc.
-- **STATUS: IN PROGRESS (Astra 0.3 — Core)** — "More capable Transformer"
-  (config variants + ablation rig), "Better inference" (KV-cache decoder,
-  top-k/top-p, streaming, extended context), "Context handling" (RoPE
+- **STATUS: IN PROGRESS (Astra 0.3 core + 0.4.0 tail)** — "More capable
+  Transformer" (config variants + ablation rig), "Better inference" (KV-cache
+  decoder, top-k/top-p, streaming, extended context), "Context handling" (RoPE
   theta-extension beyond `max_seq_len` + sliding window), "Quantization
   preview" (fp16/bf16/int8 with bounded error), and "Model benchmarking"
   (harness v1 + suite manifests + thresholds + gate tool) are complete with
-  tests. Research ablations recorded under `experiments/ablations/`. Deferred
-  within phase: full-size core model (Astra-300M/700M), Python+Rust inference
-  service, model registry v1, and ACTIVE(thresholded) benchmark suites for the
-  released model (docs/BENCHMARKS.md § 4).
+  tests. Research ablations recorded under `experiments/ablations/`.
+  **Astra 0.4.0 closed the productization tail**: model registry v1
+  (`astra/registry.py`, `tools/registry.py`, immutable + verified + CLI),
+  inference-service skeleton (`service/inference.py` Python HTTP +
+  `service/rust` `astra-rt` SHA-256 fingerprint crate), and
+  ACTIVE(thresholded) `core-basic` gates (Gate passes only when ACTIVE suites
+  pass). Deferred within phase: full-size core model (Astra-300M/700M — parked
+  per `docs/PLAN-ASTRA-5M.md`), Python+Rust inference engine equivalence, Rust
+  forward-pass runtime, and `core-reason`+ thresholded suites for the released
+  model (docs/BENCHMARKS.md § 4).
 
 ## Phase 4 — Memory
 

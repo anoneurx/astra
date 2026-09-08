@@ -1,7 +1,13 @@
 {
   "suite": "core-basic",
-  "version": 1,
-  "status": "ADVISORY",
+  "version": 2,
+  "status": "ACTIVE",
+  "threshold_decision": {
+    "recorded_from": "baseline measurements on name-tuned checkpoint (2026-09-08)",
+    "val_ppl": {"op": "<", "value": 5.0, "measured": 4.4377, "margin": 0.5623},
+    "decode_tokens_per_sec": {"op": ">", "value": 50.0, "measured": 313.73, "margin": 263.73},
+    "repetition_fraction": {"op": "<", "value": 0.5, "measured": 0.0, "margin": 0.5}
+  },
   "items": [
     {
       "id": "val_ppl",

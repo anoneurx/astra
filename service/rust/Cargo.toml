@@ -1,0 +1,10 @@
+[package]
+name = "astra-rt"
+version = "0.4.0"
+edition = "2021"
+description = "Astra Rust runtime skeleton — checkpoint fingerprint verification (Phase 3 service skeleton)"
+license = "MIT"
+
+[dependencies]
+# Intentionally dependency-free: the skeleton hashes checkpoints with a
+# self-contained SHA-256 so it builds offline and is auditable end to end.

@@ -380,6 +380,20 @@ Directory responsibilities are elaborated in the appendix of this document and e
 | Safety & hygiene gates | VALIDATED — `docs/SAFETY.md` (sanitize, dedup, leak gate, abort-on-contamination) |
 | Reference inference / generation | VALIDATED — `generation` path driven by `evaluation/evaluate.py`, Astra 0.1.0 |
 
+### Phase 3 / 0.3.0–0.4.0 core + tail (implementation-tier)
+
+| Component | Status (evidence) |
+|---|---|
+| Transformer variants + ablation rig | VALIDATED — `astra/model/core.py` config variants; `tools/ablate.py`; `experiments/ablations/` (Astra 0.3.0) |
+| KV-cache inference decoder | VALIDATED — `astra/inference/decoder.py` (`KVCache`, `decode`), matched to reference ~1e-7 (Astra 0.3.0) |
+| Context handling | VALIDATED — RoPE theta-extension + dynamic causal mask beyond `max_seq_len`; `window` slide (Astra 0.3.0) |
+| Quantization preview | VALIDATED — `astra/quantize.py` fp16/bf16/int8 bounded-error (Astra 0.3.0) |
+| Benchmark harness + gates | VALIDATED — `astra/evaluation/bench.py`, `tools/benchmark.py`, `core-basic` **ACTIVE** v2 (Astra 0.4.0) |
+| Model registry v1 | VALIDATED — `astra/registry.py`, `tools/registry.py`; immutable, sha-verified, registered artifacts (Astra 0.4.0) |
+| Inference service skeleton (Python) | VALIDATED — `service/inference.py` HTTP (`/health`, `/generate`, fresh KV cache per request) (Astra 0.4.0) |
+| Inference service skeleton (Rust) | PARTIAL — `service/rust` `astra-rt` SHA-256 checkpoint fingerprinting + CLI (Astra 0.4.0); forward-pass engine remains PROPOSED |
+| Full-size core model | PROPOSED — parked (`docs/PLAN-ASTRA-5M.md`) |
+
 ---
 
 ## Appendix A — Directory Responsibilities

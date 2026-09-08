@@ -2,10 +2,11 @@
 
 > The canonical benchmark definitions used for release evaluation and promotion gating.
 
-**STATUS: ACTIVE (v1, incremental)** — harness (`astra/evaluation/bench.py`),
+**STATUS: ACTIVE (v2, thresholded)** — harness (`astra/evaluation/bench.py`),
 suite manifests (`benchmarks/suites/`), and gate tool (`tools/benchmark.py`)
-built for the `core-basic` suite; `core-reason`+ and promotion thresholds to be
-assembled for the released Phase-3 model.
+built for the `core-basic` suite; `core-basic` is **ACTIVE(thresholded)** and
+gate on release. `core-reason`+ thresholds to be assembled for the full-size
+released Phase-3 model.
 
 ---
 
@@ -29,7 +30,7 @@ assembled for the released Phase-3 model.
 | `decode_tokens_per_sec` | `decode_tokens_per_sec` | Decode throughput | `> 50.0` | Incremental KV-cache decode |
 | `repetition_fraction` | `repetition_fraction` | 4-gram self-repetition | `< 0.5` | Detects collapsed/degenerate text |
 
-Manifest: `benchmarks/suites/core-basic.json` (version 1). Run:
+Manifest: `benchmarks/suites/core-basic.json` (version 2, **ACTIVE**). Run:
 
 ```sh
 python tools/benchmark.py --checkpoint <ckpt.npz> --config configs/toy_pretrain.json \
@@ -37,11 +38,15 @@ python tools/benchmark.py --checkpoint <ckpt.npz> --config configs/toy_pretrain.
 ```
 
 Results land in `benchmarks/results/<checksum>/<suite>/result.json` (git-ignored)
-tied to the checkpoint sha256, with environment + scorers per item.
-Reference runs (2026-09-07):
-- `checkpoints/phase0/final.npz`: **PASS** (val_ppl 2.535, 182.9 tok/s, repetition 0.0)
-- `checkpoints/name/resumed/final.npz` (Astra-name fine-tune): **PASS**
-  (val_ppl 4.567, 361.9 tok/s, repetition 0.0)
+tied to the checkpoint sha256, with environment + scorers per item. The gate
+passes only when all **ACTIVE(thresholded)** suites pass; `ADVISORY` suites are
+reported but cannot promote. Reference runs (2026-09-08):
+- `checkpoints/phase0/final.npz`: `core-basic` **PASS** (val_ppl 2.535,
+  182.9 tok/s, repetition 0.0) — registered `astra-phase0 0.3.0`.
+- `checkpoints/name/resumed/final.npz` (Astra-name fine-tune): `core-basic`
+  **ACTIVE PASS** (val_ppl 4.438, 543.9 tok/s, repetition 0.0) — registered
+  `astra-name 0.4.0`, sha256 `dd9432cc…310`. Thresholds recorded in the suite
+  manifest (`threshold_decision`) and adopted 2026-09-08.
 
 ### 2.2 `core-reason`
 
@@ -130,6 +135,12 @@ Suites are versioned; a change to a suite bumps version and records rationale.
 - Thresholds are **set from measurements**, recorded after a baseline run, and documented before adoption.
 - A suite without recorded thresholds is Advisory; promotion requires ACTIVE(thresholded) suites only.
 - Changing a threshold requires a PR updating the decision record.
+- Adopted thresholds are stored in the suite manifest under `threshold_decision`
+  with the measurement they were set from and an adoption date.
+
+**Decision record** — `core-basic` v2 adopted 2026-09-08:
+`val_ppl < 5.0` (measured 4.4377 on `astra-name`), `decode_tokens_per_sec > 50.0`
+(measured 543.9 tok/s), `repetition_fraction < 0.5` (measured 0.0).
 
 ---
 
