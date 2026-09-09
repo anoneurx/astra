@@ -355,7 +355,7 @@ Directory responsibilities are elaborated in the appendix of this document and e
 | Transformer-based model | DESIGN DECIDED + validated at toy scale (Astra 0.1.0, H0.2–H0.4) — module configs vary per scale |
 | Memory engine design | VALIDATED at toy scale — engine v1 (Astra 0.5.0: `python/astra/memory/`), session split, inference wiring, Rust vector core (`astra_rt::memory`), ranking study + adopted thresholds (GAP-1…6, docs/MEMORY.md) |
 | Learning engine design | VALIDATED at toy scale (core) — feedback intake cascade + trust tiers, experience store, candidate trainer with replay (Astra 0.7: `python/astra/learning/`, `tools/learning_loop.py`); loop demo teaches a held-out target partition (−0.775 CE) without regression (+0.009 CE) |
-| Self-improvement loop | RESEARCH (Phase 6+) |
+| Self-improvement loop | VALIDATED at toy scale (core) — gate engine + registry promotion/rollback + append-only audit + supervised worker with rollback drill (Astra 0.9: `astra/learning/{gates,audit,evaluate}.py`, `astra/registry.py` promote/rollback, `tools/self_improve.py`) |
 
 ### Phase 0 / 0.1.0 components (implementation-tier)
 

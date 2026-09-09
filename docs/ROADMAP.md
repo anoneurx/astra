@@ -205,6 +205,33 @@ parked Astra-5M (RAG generation benefit measured there). See
 - **Risks:** Reward hacking on gates; evaluation gaming; silent distribution drift; model collapse from low-diversity feedback.
 - **Exit criteria:** Astra 0.9 released with a supervised continuous-improvement demonstration.
 
+**Phase-6 core implemented (Astra 0.9.0, 2026-09-09):**
+
+- **Gate engine v2** (`astra/learning/gates.py`): `GateEngine` evaluates
+  base-vs-candidate deltas against versioned gate rules (`gain` / `no_regress`
+  / `absolute`) with `auto`/`manual` (human-approval) policy; deterministic.
+  8 gate tests.
+- **Registry promotion logic** (`astra/registry.py`): `promote`, `rollback`,
+  `history`, `current` — active-sha pointer per name over the append-only
+  immutable registry; rollback restores the previous registered entry. 4
+  registry tests.
+- **Audit log** (`astra/learning/audit.py`): append-only JSONL
+  (`learning/audit.jsonl`) — every promote/reject/rollback/approve is an
+  immutable row with decision verbatim + git commit. 2 audit tests.
+- **Supervised loop worker** (`tools/self_improve.py`): intake → candidate
+  train → measure → gate → promote/reject → audit; `--rollback-drill` exercises
+  auto-rollback (promotes a regressing artifact, restores prior active sha,
+  asserts + audits). `astra/learning/evaluate.py` = shared deterministic
+  base-vs-candidate measurement (used by the Phase-5 and Phase-6 drivers).
+- **Demonstration (reproducible)**: candidate improves held-out target
+  **−0.775 CE**, regression **+0.009 CE** → ACCEPT → promoted `astra-name`
+  0.9.0 in the registry; rollback drill restores the prior active sha; audit
+  trail records both. 25 `tests/learning/` tests; full suite 143 green; ruff
+  clean.
+- **Remaining for exit:** alerting (console report only), autonomous
+  unattended deployment (supervised-only until Phase 7), drift detection
+  (Phase 8). See `docs/PHASE_STATUS.md`.
+
 ## Phase 7 — First Stable System
 
 - **Objective:** Integrate all subsystems into a single, gated, auditable release.

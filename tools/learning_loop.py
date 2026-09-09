@@ -24,33 +24,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
 import numpy as np
 from astra.learning.candidate import CandidateConfig, train_candidate
+from astra.learning.evaluate import partition_metrics
 from astra.learning.experience import ExperienceStore, make_example
 from astra.learning.feedback import make_feedback, validate_feedback
-from astra.model import LiteLM, ModelConfig
+from astra.model import ModelConfig
 from astra.tokenizer import ByteLevelBPE
-from astra.training.checkpoint import load_checkpoint
 from astra.utils import read_json, write_json
-
-
-def corpus_loss(model: LiteLM, tok: ByteLevelBPE, sentences: list[str]) -> float:
-    """Mean next-token CE over the sentences (predict-each-token-after-first)."""
-    tot = n = 0.0
-    for s in sentences:
-        ids = tok.encode(s)
-        if len(ids) < 2:
-            continue
-        x = np.array([ids[:-1]], dtype=np.int64)
-        y = np.array([ids[1:]], dtype=np.int64)
-        _logits, loss = model.forward_loss(x, y)
-        tot += float(loss) * len(ids)
-        n += len(ids)
-    return tot / max(1.0, n)
-
-
-def load_model(cfg: ModelConfig, ckpt: str) -> LiteLM:
-    m = LiteLM(cfg, seed=0)
-    load_checkpoint(ckpt, m, opt=None, schedule=None)
-    return m
 
 
 def main() -> None:
@@ -133,19 +112,11 @@ def main() -> None:
     print(f"[train ] {res.steps} steps, final CE {res.final_loss:.4f}, {res.checkpoint}")
 
     # --- 4. candidate-vs-active eval on held-out target + regression corpora
-    base = load_model(cfg, args.base)
-    cand = load_model(cfg, res.checkpoint)
     astra_lines = Path("datasets/name/train.txt").read_text(encoding="utf-8").splitlines()[:20]
-    scores = {
-        "target_nova_loss": {
-            "base": corpus_loss(base, tok, heldout),
-            "candidate": corpus_loss(cand, tok, heldout),
-        },
-        "regression_astra_loss": {
-            "base": corpus_loss(base, tok, astra_lines),
-            "candidate": corpus_loss(cand, tok, astra_lines),
-        },
-    }
+    scores = partition_metrics(
+        args.base, res.checkpoint, tok, cfg,
+        {"target_nova_loss": heldout, "regression_astra_loss": astra_lines},
+    )
     for k, v in scores.items():
         delta = v["candidate"] - v["base"]
         print(f"[eval  ] {k:26s} base={v['base']:.3f} cand={v['candidate']:.3f} delta={delta:+.3f}")

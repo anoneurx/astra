@@ -19,6 +19,7 @@ datasets/*/*.parquet
 tokenizer/artifacts/
 memory/store/
 learning/store/
+learning/audit.jsonl
 checkpoints/candidate/
 benchmarks/results/
 

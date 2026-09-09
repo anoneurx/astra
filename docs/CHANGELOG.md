@@ -2,9 +2,37 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), and Phase-5 Learning core (Astra 0.7.0) implemented and tested.
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), Phase-5 Learning core (Astra 0.7.0), and Phase-6 Self-Improvement core (Astra 0.9.0) implemented and tested.
 
 ---
+
+## 0.9.0 (2026-09-09) — Self-Improvement (Phase 6 core)
+
+**Automated promotion gate + registry promotion/rollback + append-only audit;
+supervised continuous-improvement worker with a reproducible candidate-vs-active
+demonstration and an offline rollback drill (docs/LEARNING.md § 6.2,
+docs/PHASE_STATUS.md, docs/releases/v0.9.0.md).**
+
+- **Gate engine v2** (`astra/learning/gates.py`): `GateEngine` evaluates
+  base-vs-candidate deltas under `gain` / `no_regress` / `absolute` rules with
+  `auto`/`manual` (human-approval) policy; deterministic accept/reject.
+- **Registry promotion** (`astra/registry.py`): `promote`, `rollback`,
+  `history`, `current` — active-sha pointer per name over the append-only
+  immutable registry; rollback restores the previous registered entry.
+- **Audit log** (`astra/learning/audit.py`): append-only JSONL at
+  `learning/audit.jsonl`; every promote/reject/rollback/approve is an immutable
+  row with the gate decision verbatim + git commit.
+- **Shared measurement** (`astra/learning/evaluate.py`): deterministic
+  `partition_metrics` base-vs-candidate CE, used by both the Phase-5 and
+  Phase-6 drivers.
+- **Supervised worker** (`tools/self_improve.py`): intake → candidate train →
+  measure → gate → promote/reject → audit; `--rollback-drill` promotes a
+  regressing artifact and restores the prior active sha (assert + audit).
+- **Reproducible demo**: candidate improves held-out target **−0.775 CE**,
+  regression **+0.009 CE** → ACCEPT → promoted `astra-name` 0.9.0; rollback
+  drill restores the prior active sha; audit trail records both events.
+- **Tests**: `tests/learning/` now 25 (intake/store, candidate trainer,
+  gates/audit/registry, evaluate); full suite 143 green; ruff clean.
 
 ## 0.7.0 (2026-09-09) — Learning (Phase 5 core)
 

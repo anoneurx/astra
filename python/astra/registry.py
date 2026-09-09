@@ -59,6 +59,12 @@ class ModelRegistry:
     The default location is ``checkpoints/registry.json`` (git-ignored content,
     matching docs/ARCHITECTURE.md). Entries are keyed by sha256; lookups by
     name return the most recent registered entry for that name.
+
+    Promotion state (Phase 6): the registry tracks an *active* entry per name
+    (``active`` map). ``promote`` registers/points the active entry at a
+    candidate artifact; ``rollback`` restores the previous registered entry.
+    The promotion history is the append-only audit log (astra/learning/audit.py);
+    the registry only stores the current active pointer per name.
     """
 
     SCHEMA_VERSION = 1
@@ -66,15 +72,22 @@ class ModelRegistry:
     def __init__(self, path: str | None = None):
         self.path = str(path) if path else "checkpoints/registry.json"
         self._entries: dict[str, ArtifactRecord] = {}
+        self._active: dict[str, str] = {}
         self.load()
 
     @property
     def entries(self) -> dict[str, ArtifactRecord]:
         return dict(self._entries)
 
+    @property
+    def active(self) -> dict[str, str]:
+        """Map of name -> sha256 currently promoted as active."""
+        return dict(self._active)
+
     def load(self) -> None:
         if not Path(self.path).exists():
             self._entries = {}
+            self._active = {}
             return
         with open(self.path) as f:
             raw = json.load(f)
@@ -83,10 +96,16 @@ class ModelRegistry:
         self._entries = {
             sha: ArtifactRecord(**rec) for sha, rec in raw.get("entries", {}).items()
         }
+        self._active = dict(raw.get("active", {}))
+        # validate: active pointers must reference a registered sha
+        for name, sha in list(self._active.items()):
+            if sha not in self._entries:
+                self._active.pop(name)
 
     def save(self) -> str:
         payload = {
             "schema": self.SCHEMA_VERSION,
+            "active": dict(sorted(self._active.items())),
             "entries": {
                 sha: asdict(rec)
                 for sha, rec in sorted(self._entries.items(), key=lambda kv: kv[1].created_at)
@@ -187,3 +206,74 @@ class ModelRegistry:
     def list_names(self) -> list[str]:
         names = {r.name for r in self._entries.values()}
         return sorted(names, key=lambda n: (n,))
+
+    # -- Phase 6: promotion / rollback --------------------------------------
+
+    def history(self, name: str) -> list[ArtifactRecord]:
+        """All registered entries for ``name``, oldest first."""
+        matches = [r for r in self._entries.values() if r.name == name]
+        return sorted(matches, key=lambda r: r.created_at)
+
+    def current(self, name: str) -> ArtifactRecord | None:
+        """The active entry for ``name``, or the latest if none promoted."""
+        sha = self._active.get(name)
+        if sha and sha in self._entries:
+            return self._entries[sha]
+        return self.get(name)
+
+    def current_sha(self, name: str) -> str:
+        rec = self.current(name)
+        return rec.sha256 if rec else ""
+
+    def promote(
+        self,
+        name: str,
+        sha: str,
+        *,
+        created_at: str | None = None,
+        notes: str = "",
+    ) -> ArtifactRecord:
+        """Point the active entry for ``name`` at a registered artifact.
+
+        ``sha`` must already be registered (use ``register`` first). The
+        previous active entry is *not* deleted — it stays in the registry for
+        rollback. Returns the newly active record.
+        """
+        rec = self._entries.get(sha)
+        if rec is None:
+            raise ValueError(f"sha256 {sha[:12]} is not registered; register it before promotion")
+        prev = self._active.get(name)
+        self._active[name] = sha
+        self.save()
+        if prev is not None and prev != sha:
+            old = self._entries.get(prev)
+            if old is not None and "promoted_from" not in old.extra:
+                old.extra["superseded_by"] = sha
+                if created_at:
+                    old.extra["superseded_at"] = created_at
+                self.save()
+        return rec
+
+    def rollback(self, name: str, *, notes: str = "", created_at: str | None = None) -> ArtifactRecord | None:
+        """Revert to the previous registered entry for ``name``.
+
+        Returns the restored active record, or ``None`` when there is no
+        previous entry to roll back to (already at baseline).
+        """
+        current_sha = self._active.get(name)
+        if not current_sha:
+            return None
+        hist = [r.sha256 for r in self.history(name)]
+        if current_sha not in hist:
+            return None
+        idx = hist.index(current_sha)
+        if idx <= 0:
+            # at baseline: nothing to roll back to, but keep current as active
+            return self._entries.get(current_sha)
+        prev_sha = hist[idx - 1]
+        self._active[name] = prev_sha
+        old = self._entries.get(prev_sha)
+        if old is not None:
+            old.extra["rolled_back_to"] = created_at
+        self.save()
+        return self._entries.get(prev_sha)

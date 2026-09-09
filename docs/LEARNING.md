@@ -7,9 +7,12 @@ intake + validation cascade, experience store, and candidate trainer with
 replay are implemented and reproducibly demonstrated end-to-end on the toy
 model (`tools/learning_loop.py`): a candidate trained off the active checkpoint
 on 10 validated human-verified facts improves held-out target-partition loss by
-≈0.77 CE without regressing prior capability (+0.009 CE). Reward-weight tuning,
-threshold curves, curriculum, and the automated promotion gate remain open
-research.
+≈0.77 CE without regressing prior capability (+0.009 CE). Phase-6 (Astra 0.9)
+adds the automated promotion gate (`astra/learning/gates.py`), registry
+promotion/rollback (`astra/registry.py`), append-only audit
+(`astra/learning/audit.py`), and the supervised worker with rollback drill
+(`tools/self_improve.py`). Reward-weight tuning, threshold curves, curriculum,
+and autonomous unattended deployment remain open research.
 
 ---
 
@@ -102,13 +105,35 @@ Candidate vs active model:
 - Gain on target metrics.
 - Confidence bounds from repeated eval runs.
 
+**Implemented (Phase 6)** as `astra/learning/evaluate.py` `partition_metrics`:
+a deterministic base-vs-candidate mean-CE measurement per partition, and
+`astra/learning/gates.py` `GateEngine` with rule types `gain` (target must
+improve ≥ `min_gain`), `no_regress` (other partitions must not drop more than
+`max_regress`), and `absolute` (core-suite style thresholds), under an
+`auto`/`manual` policy.
+
 ### 1.12 Accept or Reject
 - **Accept** if gates pass and gains are statistically meaningful.
 - **Reject** otherwise; candidate deleted (or archived in registry as "rejected candidate").
 
+**Implemented (Phase 6)** by the `GateEngine` decision: `ACCEPT` when all gates
+pass (and, under `manual` policy, a human approves); otherwise `REJECT` (or
+`PENDING_HUMAN` under manual policy). The decision verbatim — every gate result
+— feeds the audit trail.
+
 ### 1.13 Deploy or Rollback
 - Accept → promote in registry (immutable), audit complete.
 - Reject → current model unchanged; a regression discovered post-deploy triggers automatic rollback to previous registered version.
+
+**Implemented (Phase 6)** as `astra/registry.py` `promote` / `rollback` /
+`history` (active-sha pointer per name over the append-only immutable registry)
+and `astra/learning/audit.py` `AuditLog` (append-only JSONL at
+`learning/audit.jsonl`). The supervised worker `tools/self_improve.py` wires
+intake → candidate → measure → gate → promote/reject → audit, and
+`--rollback-drill` exercises the automatic-rollback path offline. Example:
+candidate improves held-out target −0.775 CE with no regression (+0.009 CE) →
+ACCEPT → promoted `astra-name` 0.9.0, rollback drill restores the prior sha,
+audit records both events.
 
 ---
 
@@ -223,11 +248,24 @@ the gain is generalization, not memorization of the 10 validated lines. The
 replay stream keeps the Astra capability stable (CE +0.009, within noise).
 Everything traces to the 10 `human_verification`-tier experiences in the store.
 
-### 6.2 What remains for Phase-5 exit / Phase 6
+### 6.2 Phase-6 automation layer (Astra 0.9)
+
+| Component | Module | Notes |
+|---|---|---|
+| Gate engine | `astra/learning/gates.py` | `GateEngine` — `gain` / `no_regress` / `absolute` rules, `auto`/`manual` policy; deterministic accept/reject |
+| Shared measurement | `astra/learning/evaluate.py` | `corpus_loss`, `load_model`, `partition_metrics` (base-vs-candidate CE per partition) |
+| Registry promotion | `astra/registry.py` | `promote` / `rollback` / `history` / `current` over the immutable append-only registry |
+| Audit log | `astra/learning/audit.py` | `AuditLog` — append-only JSONL at `learning/audit.jsonl` (promote/reject/rollback/approve with decision verbatim) |
+| Supervised worker | `tools/self_improve.py` | intake → candidate → measure → gate → promote/reject → audit; `--rollback-drill` |
+
+### 6.3 What remains for Phase-5/6 exit / Phase 7
 
 - Preference-pair (ranking) training path — payload schema exists, trainer
   currently uses only the `good` path in `kind == "preference"`.
-- Automated promotion gate (registry promotion + audit) — Phase 6.
+- Autonomous unattended deployment — `tools/self_improve.py` is supervised
+  (explicit command); a scheduled worker belongs to Phase 7.
+- Alerting — promotion/rejection is reported on console + audit; out-of-band
+  notification defer to Phase 7.
 - Reward-weight / threshold curves and feedback-confidence research —
   documented as open research above.
 - Leak coverage for the live pipeline (`learning/store` is git-ignored like

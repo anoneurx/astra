@@ -115,6 +115,13 @@ def train_candidate(
     for ex in experiences:
         sft_seq += _sequence_from_payload(tokenizer, ex["payload"], ex["kind"])
         sft_seq += [tokenizer.encode("<bos>")[0]]
+    # A very small experience set (e.g. a single short correction) may be
+    # shorter than one context window; tile it so at least one window exists,
+    # otherwise SeqStream would produce zero windows and the candidate would
+    # never see the experience (silent no-op). Deterministic tiling.
+    if len(sft_seq) > 0 and len(sft_seq) < model_config.max_seq_len + 1:
+        tile = int(np.ceil((model_config.max_seq_len + 1) / len(sft_seq)))
+        sft_seq = sft_seq * tile
     sft_ids = np.array(sft_seq, dtype=np.int32) if sft_seq else np.zeros(0, dtype=np.int32)
     exp_corpus = Corpus(
         ids=sft_ids,
