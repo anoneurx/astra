@@ -8,6 +8,7 @@ from threading import Thread
 
 import pytest
 from astra.inference import decode
+from astra.memory import HashEmbedder, MemoryRecord, MemoryStore
 from astra.model import LiteLM, ModelConfig
 from astra.tokenizer import ByteLevelBPE
 from astra.training.checkpoint import load_checkpoint
@@ -122,3 +123,18 @@ def test_http_errors(live_server):
                  headers={"Content-Type": "application/json"})
     assert conn.getresponse().status == 400
     conn.close()
+
+
+def test_memory_mode_prepends_recalled_block(tmp_path):
+    mem = MemoryStore(name="svc", directory=tmp_path, embedder=HashEmbedder())
+    mem.add(MemoryRecord(content="Astra memory integration fact 777.", tags=["q"]))
+    app = InferenceApp(NACKPT, NCFG, memory="svc", memory_dir=str(tmp_path),
+                       memory_embedder="hash", memory_budget_tokens=64, memory_k=3)
+    h = app.health()
+    assert h["memory"] == "svc"
+    r = app.generate({"prompt": "Astra memory integration", "seed": 5, "max_new": 8})
+    assert r["memory"]["included"] and "svc-mem" not in r["prompt"]
+    assert "<|/memory|>" in r["prompt"]
+    # opt-out keeps the old behaviour (prompt untouched)
+    r2 = app.generate({"prompt": "Astra memory integration", "seed": 5, "max_new": 8, "memory": False})
+    assert r2["prompt"] == "Astra memory integration"

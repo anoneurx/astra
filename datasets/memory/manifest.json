@@ -1,0 +1,19 @@
+{
+  "dataset": "memory",
+  "pipeline": "hand-authored (docs/MEMORY.md §eval)",
+  "license_stub": "synthetic demonstration facts + questions; no external copyright",
+  "cleaning_rules": "n/a (authored, not scraped)",
+  "contamination_status": {
+    "n": 10,
+    "train_vs_val": "leak_free",
+    "train_vs_eval": "leak_free",
+    "note": "facts/queries are evaluation-only material; the memory store tags them eval-quarantine and tools must opt in via allow_quarantine=True"
+  },
+  "splits": {
+    "qa_v1": {
+      "path": "datasets/memory/qa_v1.json",
+      "facts": 10,
+      "items": 11
+    }
+  }
+}

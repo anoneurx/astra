@@ -1,0 +1,54 @@
+{
+  "suite": "core-retrieval",
+  "version": 2,
+  "status": "ADVISORY",
+  "gate": "engine-level retrieval quality. ADVISORY (not checkpoint-gated): a candidate checkpoint/engine change must not regress retrieval below these thresholds. Adopted Astra 0.5 from the GAP-5 ranking-study on the demo corpus (HashEmbedder dim=64): defaults (cosine-led) are optimal on this corpus; heavy recency degrades MRR.",
+  "threshold_decision": {
+    "status": "adopted (v2)",
+    "adopted_at": "2026-09-09",
+    "note": "Thresholds below apply to HashEmbedder (default demo embedder) on datasets/memory/qa_v1.json. LiteLMExtractor-on-toy remains non-gated (encoder is the bottleneck; re-measure with the real model). Enforced by tools/memory_eval.py --enforce.",
+    "baselines_run": {
+      "hash_embedder": {"hit_at_1": 0.91, "hit_at_5": 1.0, "mrr": 0.93, "ndcg_at_5": 0.93, "corpus": "datasets/memory/qa_v1.json", "study": "benchmarks/results/memory/ranking-study.json"},
+      "litelm_on_toy": {"hit_at_1": 0.27, "hit_at_5": 0.82, "mrr": 0.50, "ndcg_at_5": 0.56, "note": "not gated"}
+    }
+  },
+  "items": [
+    {
+      "id": "hit_at_1",
+      "type": "retrieval-quality",
+      "scorer": "hit_at_1",
+      "args": {},
+      "expected_metric": "accuracy",
+      "threshold": 0.8,
+      "note": "rank of gold memory <= 1"
+    },
+    {
+      "id": "hit_at_5",
+      "type": "retrieval-quality",
+      "scorer": "hit_at_5",
+      "args": {},
+      "expected_metric": "accuracy",
+      "threshold": 1.0,
+      "note": "rank of gold memory <= 5"
+    },
+    {
+      "id": "mrr",
+      "type": "retrieval-quality",
+      "scorer": "mrr",
+      "args": {},
+      "expected_metric": "mean-reciprocal-rank",
+      "threshold": 0.9,
+      "note": "average reciprocal rank of first gold hit"
+    },
+    {
+      "id": "ndcg_at_5",
+      "type": "retrieval-quality",
+      "scorer": "ndcg_at_5",
+      "args": {},
+      "expected_metric": "nDCG",
+      "threshold": 0.9,
+      "note": "graded ranking quality at depth 5"
+    }
+  ],
+  "runner": "tools/memory_eval.py"
+}

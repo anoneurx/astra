@@ -1,0 +1,34 @@
+{
+  "name": "astra-memory-qav1",
+  "version": 1,
+  "meta": {
+    "kind": "long-form QA + memory retrieval quality",
+    "corpus": "synthetic demonstration corpus (10 facts, 11 questions)",
+    "used_by": ["tools/memory_eval.py", "tools/memory_qa.py"]
+  },
+  "facts": [
+    {"id": "capital_france", "content": "Paris is the capital of France.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["geography"]},
+    {"id": "capital_spain", "content": "Madrid is the capital of Spain.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["geography"]},
+    {"id": "einstein", "content": "Albert Einstein developed the theory of relativity.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["science"]},
+    {"id": "h2o", "content": "Water is composed of hydrogen and oxygen.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["science"]},
+    {"id": "moon", "content": "The Moon is Earth's only natural satellite.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["space"]},
+    {"id": "marseille", "content": "Marseille is a port city in southern France.", "kind": "fact", "verification_status": "verified", "confidence": 0.9, "tags": ["geography"]},
+    {"id": "quark", "content": "Quarks are fundamental constituents of matter.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["science"]},
+    {"id": "gaucho", "content": "A gaucho is a skilled cowboy of the South American pampas.", "kind": "fact", "verification_status": "verified", "confidence": 0.9, "tags": ["culture"]},
+    {"id": "tardis", "content": "The TARDIS is a fictional time machine in Doctor Who.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["fiction"]},
+    {"id": "photosynthesis", "content": "Photosynthesis converts light into chemical energy.", "kind": "fact", "verification_status": "verified", "confidence": 0.95, "tags": ["science"]}
+  ],
+  "items": [
+    {"id": "q01", "question": "What is the capital city of France?", "gold_fact_ids": ["capital_france"]},
+    {"id": "q02", "question": "What is the capital of Spain?", "gold_fact_ids": ["capital_spain"]},
+    {"id": "q03", "question": "Who developed the theory of relativity?", "gold_fact_ids": ["einstein"]},
+    {"id": "q04", "question": "What is water composed of?", "gold_fact_ids": ["h2o"]},
+    {"id": "q05", "question": "What is the Moon relative to Earth?", "gold_fact_ids": ["moon"]},
+    {"id": "q06", "question": "Which city on the southern coast of France is a port?", "gold_fact_ids": ["marseille"]},
+    {"id": "q07", "question": "What fundamental particles make up matter?", "gold_fact_ids": ["quark"]},
+    {"id": "q08", "question": "Who is a skilled cowboy of the South American pampas?", "gold_fact_ids": ["gaucho"]},
+    {"id": "q09", "question": "What is the TARDIS in Doctor Who?", "gold_fact_ids": ["tardis"]},
+    {"id": "q10", "question": "How does photosynthesis produce energy?", "gold_fact_ids": ["photosynthesis"]},
+    {"id": "q11", "question": "Name details about the capital of France and its southern port city.", "gold_fact_ids": ["capital_france", "marseille"]}
+  ]
+}

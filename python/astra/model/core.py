@@ -299,7 +299,13 @@ class LiteLM:
         self.ffn = [SwiGLUBLock(cfg, rng, i) for i in range(cfg.n_layers)]
         self.ln_f = _make_norm(cfg)
 
-    def forward(self, ids: np.ndarray) -> np.ndarray:
+    def forward(self, ids: np.ndarray, hidden: bool = False) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+        """Forward pass — ``forward(ids) -> logits`` (B, T, V).
+
+        With ``hidden=True`` also returns the pre-output-head last-layer
+        activations ``(B, T, d_model)`` (post final RMSNorm), used as the
+        sentence-embedding source by the memory engine (docs/MEMORY.md § 5).
+        """
         x = self.wte.forward(ids)
         if self.cfg.pos_type == "learned":
             pos = np.arange(ids.shape[1], dtype=np.int64)[None, :]
@@ -309,7 +315,10 @@ class LiteLM:
             x = f.forward(x)
         self._final_act = x
         self._ln_out = self.ln_f.forward(x)
-        return self._ln_out @ self.wte.w.T  # tied output head
+        logits = self._ln_out @ self.wte.w.T  # tied output head
+        if hidden:
+            return logits, self._ln_out
+        return logits
 
     def zero_grad(self) -> None:
         self.wte.grad[:] = 0

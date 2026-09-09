@@ -38,6 +38,10 @@ def main() -> None:
     ap.add_argument("--max-new", type=int, default=64)
     ap.add_argument("--top-k", type=int, default=8)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--memory", default=None, help="memory store to recall from per turn")
+    ap.add_argument("--memory-embedder", default="hash", choices=["hash", "litelm"])
+    ap.add_argument("--memory-budget-tokens", type=int, default=192)
+    ap.add_argument("--memory-k", type=int, default=5)
     args = ap.parse_args()
 
     raw = read_json(args.config)
@@ -46,9 +50,15 @@ def main() -> None:
 
     model = LiteLM(cfg, seed=0)
     step, _hist, _meta = load_checkpoint(args.checkpoint, model, opt=None, schedule=None)
+    memory = None
+    if args.memory:
+        from astra.memory import HashEmbedder, LiteLMExtractor, MemoryStore, build_memory_block
+
+        embedder = HashEmbedder() if args.memory_embedder == "hash" else LiteLMExtractor(model, tok)
+        memory = MemoryStore.open(args.memory, embedder=embedder)
     print(f"Astra loaded (step {step}, {model.num_params} params)")
     print(f"Checkpoint: {args.checkpoint}")
-    print(f"Temperature: {args.temperature}")
+    print(f"Temperature: {args.temperature}" + (f" | memory: {args.memory}" if memory else ""))
     print()
 
     rng = np.random.default_rng(args.seed)
@@ -68,6 +78,17 @@ def main() -> None:
         seed_ids = tok.encode(prompt)
         if len(seed_ids) < 1:
             continue
+
+        if memory:
+            hits = memory.search(query=prompt, k=args.memory_k,
+                                 budget_tokens=args.memory_budget_tokens, tokenizer=tok)
+            block = build_memory_block(hits, tok, budget_tokens=args.memory_budget_tokens)
+            if block.included:
+                print(f"  [memory] {len(block.included)} recalled: "
+                      + ", ".join(h.record.id for h in block.included))
+            seed_ids = tok.encode(block.prepend(prompt))
+            if len(seed_ids) < 1:
+                continue
 
         cache = KVCache(model.cfg)
         gen_ids = decode(

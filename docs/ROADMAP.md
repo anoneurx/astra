@@ -113,6 +113,47 @@ Version semantics are defined in `docs/VERSIONING.md`. Patch-level releases (0.0
 - **Risks:** Retrieval quality noise; memory overfitting; data contamination.
 - **Exit criteria:** Astra 0.5 released; memory benchmarks documented.
 
+**Memory engine v1 delivered (2026-09-08, milestone):** `python/astra/memory/`
+records/embedder/store/ranking/retrieval/injection + `tools/memory.py` CLI +
+`tools/memory_eval.py` retrieval-quality eval; lifecycle implemented
+(correction revisions, soft-delete/purge, expiry TTL, dispute/resolve queue);
+flat exact retrieval with hybrid ranking + token budget; append-only JSONL
+audit; quarantine (leakage) gate as a retrieval exclusion;
+`core-retrieval` ADVISORY suite manifest with baselines (docs/BENCHMARKS.md
+§ 2.5). 23 engine tests.
+
+**Gaps closed toward Astra 0.5 (2026-09-08):**
+- **G1 — inference integration done:** `service/inference.py`
+  (`--memory`, `--memory-dir`, `--memory-embedder hash|litelm`,
+  `--memory-budget-tokens`, `--memory-k`) and `inference/generate.py`
+  per-turn recall; `<|memory|>` block prepended; `/health` reports store +
+  embedder; responses carry `memory` attribution (`included`/`dropped`/
+  `block_tokens`); per-request opt-out via `"memory": false`.
+- **G2 — long-form QA eval set + RAG-vs-baseline done:**
+  `datasets/memory/qa_v1.json` + `manifest.json` (10 facts, 11 items,
+  leak-free, eval-quarantine by policy) and `tools/memory_qa.py`
+  (free-form fact-recall, gold-retrieval rate, conditioning probe);
+  baseline report § 2.5a — toy decoder is a negative control; positive
+  RAG signal requires the Astra-5M model (docs/PLAN-ASTRA-5M.md).
+
+- **G3 — short/long-term session split done:** `astra/memory/session.py`
+  `SessionMemory` + `promote()`; session records (`kind="session"`,
+  `session:<id>`, TTL) are isolated from durable recall by default,
+  auto-expire/`close()` soft-deletes the session, promotion copies a session
+  record into a long-term fact with attribution; CLI `remember` /
+  `session-recall` / `session-close` / `promote`; MEMORY.md § 8.5.
+
+- **G5 — relevance-scoring study + thresholds adopted done:** GAP-5 + adoption
+  `tools/memory_ranking_study.py` weight-grid sweep → `ranking-study.json`;
+  repository `core-retrieval.json` v2 carries adopted thresholds
+  (hit@1 ≥ 0.8 / hit@5 = 1.0 / MRR ≥ 0.9 / nDCG@5 ≥ 0.9); `memory_eval --enforce`
+  gates them for the HashEmbedder baseline.
+
+**G6 — Astra 0.5 release done (2026-09-09):** release notes
+`docs/releases/v0.5.0.md`, CHANGELOG 0.5.0, all Phase-4 gaps closed except the
+parked Astra-5M (RAG generation benefit measured there). See
+`docs/PLAN-ASTRA-5M.md`.
+
 ## Phase 5 — Learning
 
 - **Objective:** Turn feedback into validated training examples and candidate-model training.

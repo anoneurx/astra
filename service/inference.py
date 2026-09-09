@@ -40,7 +40,16 @@ from astra.utils import read_json, sha256_file
 class InferenceApp:
     """Plain functions wrapping the decoder; also used directly by tests."""
 
-    def __init__(self, checkpoint: str, config: str):
+    def __init__(
+        self,
+        checkpoint: str,
+        config: str,
+        memory: str | None = None,
+        memory_dir: str = "memory/store",
+        memory_embedder: str = "hash",
+        memory_budget_tokens: int = 256,
+        memory_k: int = 8,
+    ):
         raw = read_json(config)
         self.tokenizer = ByteLevelBPE.load(raw["tokenizer"])
         cfg = ModelConfig.from_dict({**raw["model"], "vocab_size": len(self.tokenizer)})
@@ -48,6 +57,17 @@ class InferenceApp:
         self.step, _hist, _meta = load_checkpoint(checkpoint, self.model, opt=None, schedule=None)
         self.checkpoint = checkpoint
         self.checksum = sha256_file(checkpoint)
+        self.memory = None
+        if memory:
+            from astra.memory import HashEmbedder, LiteLMExtractor, MemoryStore
+
+            if memory_embedder == "litelm":
+                embedder = LiteLMExtractor(self.model, self.tokenizer)
+            else:
+                embedder = HashEmbedder()
+            self.memory = MemoryStore.open(memory, memory_dir, embedder=embedder)
+            self.memory_budget_tokens = int(memory_budget_tokens)
+            self.memory_k = int(memory_k)
 
     def health(self) -> dict:
         return {
@@ -57,12 +77,37 @@ class InferenceApp:
             "step": self.step,
             "checkpoint": self.checkpoint,
             "checksum": self.checksum,
+            "memory": self.memory.name if self.memory else None,
+            "memory_embedding": self.memory.meta["embedding_config"]["name"] if self.memory else None,
         }
+
+    def _memory_block(self, prompt: str) -> tuple[str, dict]:
+        """Retrieve memories for ``prompt`` and prepend the ``<|memory|>`` block."""
+        from astra.memory import build_memory_block
+
+        hits = self.memory.search(
+            query=prompt,
+            k=self.memory_k,
+            budget_tokens=self.memory_budget_tokens,
+            tokenizer=self.tokenizer,
+        )
+        block = build_memory_block(hits, self.tokenizer, budget_tokens=self.memory_budget_tokens)
+        text = block.prepend(prompt)
+        info = {
+            "included": [h.record.id for h in block.included],
+            "dropped": [h.record.id for h in block.dropped],
+            "block_tokens": len(block.tokens),
+        }
+        return text, info
 
     def generate(self, payload: dict) -> dict:
         prompt = str(payload.get("prompt", ""))
         if not prompt.strip():
             raise ValueError("'prompt' is required and must be non-empty")
+        memory_info = None
+        use_memory = bool(payload.get("memory", self.memory is not None))
+        if use_memory and self.memory is not None:
+            prompt, memory_info = self._memory_block(prompt)
         seed = int(payload.get("seed", 0))
         rng = np.random.default_rng(seed)
         seed_ids = self.tokenizer.encode(prompt)
@@ -85,7 +130,10 @@ class InferenceApp:
         except (UnicodeDecodeError, KeyError):
             text = "".join(chr(b) if 32 <= b < 127 else "." for b in
                            b"".join(self.tokenizer.id_to_piece.get(i, b"?") for i in gen))
-        return {"text": text, "tokens": len(gen), "prompt": prompt, "seed": seed}
+        result = {"text": text, "tokens": len(gen), "prompt": prompt, "seed": seed}
+        if memory_info is not None:
+            result["memory"] = memory_info
+        return result
 
 
 def make_handler(app: InferenceApp):
@@ -132,12 +180,22 @@ def main() -> None:
     ap.add_argument("--config", default="configs/toy_name.json")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--memory", default=None, help="memory store name (memory/store/<name>.json)")
+    ap.add_argument("--memory-dir", default="memory/store")
+    ap.add_argument("--memory-embedder", default="hash", choices=["hash", "litelm"])
+    ap.add_argument("--memory-budget-tokens", type=int, default=256)
+    ap.add_argument("--memory-k", type=int, default=8)
     args = ap.parse_args()
 
-    app = InferenceApp(args.checkpoint, args.config)
+    app = InferenceApp(args.checkpoint, args.config, memory=args.memory,
+                       memory_dir=args.memory_dir, memory_embedder=args.memory_embedder,
+                       memory_budget_tokens=args.memory_budget_tokens, memory_k=args.memory_k)
     server = ThreadingHTTPServer((args.host, args.port), make_handler(app))
     print(f"Astra inference service on http://{args.host}:{args.port} "
           f"({app.model.num_params} params, step {app.step})")
+    if app.memory:
+        print(f"memory: {app.memory.name} ({app.memory.meta['embedding_config']['name']}, "
+              f"k={app.memory_k}, budget={app.memory_budget_tokens} tokens)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

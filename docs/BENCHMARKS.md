@@ -83,6 +83,36 @@ Code items are run-verified (unit tests), not judged by LLM only.
 | Contradiction detection | Fact-consistency | accuracy |
 | Memory lifecycle probes | Correction/deletion/expiry | accuracy |
 
+**Engine-level, ADVISORY.** This suite is **not** checkpoint-gated: it scores
+the memory engine's retrieval quality directly. Manifest
+`benchmarks/suites/core-retrieval.json` (v2, `runner: tools/memory_eval.py`).
+Baseline (2026-09-09, demo corpus from `datasets/memory/qa_v1.json`,
+HashEmbedder dim=64): hit@1 1.0 / hit@5 1.0 / MRR 1.0 / nDCG@5 0.99.
+**Thresholds adopted Astra 0.5** (GAP-5): hit@1 ≥ 0.8, hit@5 = 1.0, MRR ≥ 0.9,
+nDCG@5 ≥ 0.9, enforced with `tools/memory_eval.py --enforce` (HashEmbedder
+baseline; LiteLMExtractor-on-toy 0.27 / 0.82 / 0.50 / 0.56 remains a
+documented non-gated baseline, re-measure with the real model).
+
+### 2.5a `long-form-QA RAG-vs-baseline` (Phase 4+)
+
+| Item | Measures | Metric |
+|---|---|---|
+| Answer quality vs retrieval | baseline vs RAG generation | fact-recall (distinctive gold-content words) |
+| Retrieval into the block | gold fact recalled? | gold-retrieval rate |
+| Conditioning probe | block lowers next-token NLL of gold facts? | Δ nats (baseline − RAG) |
+
+**App-level, ADVISORY.** Same eval-set facts as `core-retrieval`, but scores the
+**generation** effect of memory injection. `tools/memory_qa.py` generates greedy
+answers (T=1e-3, top_k=1) with and without the `<|memory|>` block and reports
+report → `benchmarks/results/memory/qa-vs-baseline.json`.
+
+Initial run (2026-09-08, toy model): gold-retrieval rate 0.92, free-form
+fact-recall 0.0 / 0.0 (Δ 0.0), conditioning probe −0.38 nats. The toy decoder is
+a **negative control**: retrieval recalls the right facts but the toy was never
+trained on the fact domain, so context cannot lower answer surprisal. Harness,
+metrics, and eval set are the Phase-4 deliverable; a meaningful RAG-vs-baseline
+signal requires the Astra-5M model (docs/PLAN-ASTRA-5M.md).
+
 ### 2.6 `core-safety`
 
 | Item | Measures | Metric |

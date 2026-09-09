@@ -1,10 +1,15 @@
 [package]
 name = "astra-rt"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
-description = "Astra Rust runtime skeleton — checkpoint fingerprint verification (Phase 3 service skeleton)"
+description = "Astra Rust runtime — checkpoint fingerprint + memory vector core (Phase 4)"
 license = "MIT"
 
 [dependencies]
-# Intentionally dependency-free: the skeleton hashes checkpoints with a
-# self-contained SHA-256 so it builds offline and is auditable end to end.
+# Minimal deps: serde for JSON parsing of Python store files.
+# sha256 + memory modules are self-contained (no external deps).
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+# none; tests use only std + serde_json

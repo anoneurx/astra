@@ -353,7 +353,7 @@ Directory responsibilities are elaborated in the appendix of this document and e
 | Technology stack | VALIDATED (as policy) — Python reference implementation chosen, implemented, and validated (ADR-0002, Astra 0.1.0) |
 | High-level architecture | VALIDATED (as design) — pipeline, modules, and repo structure implemented per spec; validated at toy scale (Astra 0.1.0) |
 | Transformer-based model | DESIGN DECIDED + validated at toy scale (Astra 0.1.0, H0.2–H0.4) — module configs vary per scale |
-| Memory engine design | PROPOSED (Phase 4+) |
+| Memory engine design | VALIDATED at toy scale — engine v1 (Astra 0.5.0: `python/astra/memory/`), session split, inference wiring, Rust vector core (`astra_rt::memory`), ranking study + adopted thresholds (GAP-1…6, docs/MEMORY.md) |
 | Learning engine design | RESEARCH (Phase 5+) |
 | Self-improvement loop | RESEARCH (Phase 6+) |
 
@@ -393,6 +393,18 @@ Directory responsibilities are elaborated in the appendix of this document and e
 | Inference service skeleton (Python) | VALIDATED — `service/inference.py` HTTP (`/health`, `/generate`, fresh KV cache per request) (Astra 0.4.0) |
 | Inference service skeleton (Rust) | PARTIAL — `service/rust` `astra-rt` SHA-256 checkpoint fingerprinting + CLI (Astra 0.4.0); forward-pass engine remains PROPOSED |
 | Full-size core model | PROPOSED — parked (`docs/PLAN-ASTRA-5M.md`) |
+
+### Phase 4 / 0.5.0 Memory engine v1 (implementation-tier)
+
+| Component | Status (evidence) |
+|---|---|
+| Memory records schema | VALIDATED — `astra/memory/records.py` (immutable v1, JSON+base64 round-trip) |
+| Embedders | VALIDATED — `astra/memory/embedder.py` (`LiteLMExtractor` mean-pool last-layer; `HashEmbedder` deterministic) |
+| Versioned store + audit | VALIDATED — `astra/memory/store.py` (atomic JSONL-audited persistence; lifecycle 8.x) |
+| Retrieval + hybrid ranking | VALIDATED — `astra/memory/retrieval.py`, `ranking.py` (flat exact, top-k, token budget) |
+| Working-context injection | VALIDATED — `astra/memory/injection.py` (`<|memory|>` block, `build_memory_block`) |
+| Retrieval-quality eval | PARTIAL — `tools/memory_eval.py` + `core-retrieval` ADVISORY baselines; thresholds at 0.5 |
+| Rust `astra-memory` store (HNSW) | PROPOSED — deferred |
 
 ---
 

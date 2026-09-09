@@ -2,7 +2,59 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0) and Phase-3 core components (Astra 0.3.0) implemented and tested.
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), and Phase-4 Memory (Astra 0.5.0) implemented and tested.
+
+---
+
+## 0.5.0 (2026-09-09) — Memory (Phase 4)
+
+**Memory engine v1: external, structured, versioned memory with audited
+lifecycle + flat retrieval; session split; inference wiring; Rust vector core;
+retrieval thresholds adopted (docs/MEMORY.md, docs/releases/v0.5.0.md).**
+
+- **Records** (`astra/memory/records.py`): immutable v1 schema (kind, source,
+  confidence, verification, revision/deprecates, tags, attribution), JSON +
+  base64-embedding round-trip, validation.
+- **Embedders** (`astra/memory/embedder.py`): `LiteLMExtractor` (mean-pooled
+  last-layer activations of the Astra encoder; `LiteLM.forward(..., hidden=True)`)
+  and deterministic `HashEmbedder` (tests / engine-only eval).
+- **Store** (`astra/memory/store.py`): atomic JSON persistence + append-only
+  JSONL audit; lifecycle — `correct` (immutable revisions), `soft_delete`
+  (+ audited purge), `expire` (TTL sweep), `mark_disputed`/`resolve` conflict
+  queue; lazy re-embedding; embedding-drift detection.
+- **Retrieval + ranking** (`retrieval.py`, `ranking.py`): flat exact cosine,
+  top-k + token budget, hybrid score (cosine/recency/confidence/kind);
+  disputed + `eval-quarantine` exclusions.
+- **Injection** (`injection.py`): `<|memory|>` block builder with budget and
+  attribution ids; `prepend` helper.
+- **Session split** (`session.py`): `SessionMemory` short-term working buffer
+  (session-scoped `kind="session"` records, TTL expiry, `close()` bulk
+  soft-delete, isolated from durable recall) + audited `promote()` to
+  long-term kinds with attribution; CLI `remember`/`session-recall`/
+  `session-close`/`promote`.
+- **Inference wiring**: `service/inference.py` `--memory …` opens a store and
+  prepends recalled `<|memory|>` blocks per request (memory attribution in the
+  response); per-request opt-out (`"memory": false`); `inference/generate.py`
+  per-turn recall.
+- **Eval set + RAG measurement**: `datasets/memory/qa_v1.json` (+ manifest,
+  10 facts / 11 items, leak-free, `eval-quarantine` by policy);
+  `tools/memory_qa.py` long-form-QA RAG-vs-baseline (fact-recall,
+  gold-retrieval rate, conditioning probe) — toy model is a negative control;
+  positive signal tracked to Astra-5M.
+- **Rust memory core** (`service/rust`): `astra-rt` now a lib crate
+  (`memory.rs` flat exact cosine store + base64-f32 decode of Python store
+  files; `sha256.rs` split out) + `astramem` bin CLI; `rust_mem_crosscheck.py`
+  verifies Rust vs Python top-k on identical embeddings.
+- **Tooling**: `tools/memory.py` CLI (init/add/get/query/list/correct/delete/
+  expire/conflicts/resolve/audit/remember/session-recall/session-close/
+  promote); `tools/memory_eval.py` retrieval eval
+  (hit@1/5, MRR, nDCG@5) with JSON reports under `benchmarks/results/memory/`.
+- **Suites**: `core-retrieval` ADVISORY manifest with baselines (HashEmbedder
+  MRR 1.0 on the manifest corpus; LiteLMExtractor-on-toy MRR 0.50).
+- **Tests**: 29 engine/session tests (round-trip, lifecycle,
+  revision/deprecates, conflict/resolve, ranking+budget, quarantine/leakage,
+  injection, session isolation/TTL/close/promote, embedders, audit). Release
+  notes: `docs/releases/v0.5.0.md` (on release).
 
 ---
 

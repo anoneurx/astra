@@ -1,43 +1,37 @@
-"""Memory engine (docs/MEMORY.md).
+from astra.memory.embedder import HashEmbedder, LiteLMExtractor
+from astra.memory.injection import MemoryBlock, build_memory_block
+from astra.memory.ranking import DEFAULT_WEIGHTS, hybrid_score
+from astra.memory.records import (
+    MEMORY_KINDS,
+    QUARANTINE_TAG,
+    MemoryRecord,
+    corrected_record,
+    new_id,
+    now_iso,
+)
+from astra.memory.retrieval import RetrievalHit, retrieve
+from astra.memory.session import DEFAULT_SESSION_TTL, SESSION_TAG_PREFIX, SessionMemory, promote
+from astra.memory.store import DEFAULT_NAME, MemoryStore
 
-Phase 0 provides the interface contract only — implementation arrives in
-Phase 4 (Astra 0.5). Nothing here is executable storage yet.
-"""
-
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-
-
-@dataclass
-class MemoryRecord:
-    id: str
-    kind: str          # fact | episode | semantic | session
-    content: str
-    source: str        # user_said | verified_correction | auto_extract | model_generated
-    confidence: float
-    verification_status: str = "unverified"   # unverified | verified | disputed
-    revision: int = 1
-    deprecates: str | None = None
-    tags: list[str] = field(default_factory=list)
-    expires_at: str | None = None
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "kind": self.kind,
-            "content": self.content,
-            "source": self.source,
-            "confidence": self.confidence,
-            "verification_status": self.verification_status,
-            "revision": self.revision,
-            "deprecates": self.deprecates,
-            "tags": self.tags,
-            "expires_at": self.expires_at,
-        }
-
-
-# Correctness contract for the Phase 4 implementation (tests must enforce):
-#  - correction creates a new revision; revisions are immutable
-#  - soft-delete always (audit); purge requires explicit review flag
-#  - conflicts (same semantic content, competing facts) -> 'disputed', resolution queue
+__all__ = [
+    "DEFAULT_NAME",
+    "DEFAULT_SESSION_TTL",
+    "DEFAULT_WEIGHTS",
+    "MEMORY_KINDS",
+    "QUARANTINE_TAG",
+    "SESSION_TAG_PREFIX",
+    "HashEmbedder",
+    "LiteLMExtractor",
+    "MemoryBlock",
+    "MemoryRecord",
+    "MemoryStore",
+    "RetrievalHit",
+    "SessionMemory",
+    "build_memory_block",
+    "corrected_record",
+    "hybrid_score",
+    "new_id",
+    "now_iso",
+    "promote",
+    "retrieve",
+]
