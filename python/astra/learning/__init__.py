@@ -1,9 +1,11 @@
 """Learning engine (docs/LEARNING.md).
 
-Phase 0 provides the interface contract only; the candidate
-observe -> feedback -> train -> evaluate -> accept/reject loop arrives in
-Phase 5 (Astra 0.7). The trust tiers below are the policy the implementation
-must enforce.
+Phase 5 (Astra 0.7) implements the core loop: feedback intake
+(``feedback.py``), experience store (``experience.py``), candidate training
+off the active checkpoint (``candidate.py``) and the comparison driver
+(``tools/learning_loop.py``). The trust tiers below are the policy the intake
+cascade must enforce; the automated accept/reject promotion gate arrives in
+Phase 6 (self-improvement).
 """
 
 from __future__ import annotations

@@ -18,6 +18,8 @@ datasets/*/*.jsonl
 datasets/*/*.parquet
 tokenizer/artifacts/
 memory/store/
+learning/store/
+checkpoints/candidate/
 benchmarks/results/
 
 # Experiments / logs

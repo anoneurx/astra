@@ -2,9 +2,43 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), and Phase-4 Memory (Astra 0.5.0) implemented and tested.
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), and Phase-5 Learning core (Astra 0.7.0) implemented and tested.
 
 ---
+
+## 0.7.0 (2026-09-09) — Learning (Phase 5 core)
+
+**Learning engine v1: feedback intake cascade with trust tiers + quarantine,
+experience store with dedup/provenance, and candidate trainer with replay;
+reproducible end-to-end candidate-vs-active demonstration on the toy model
+(docs/LEARNING.md, docs/releases/v0.7.0.md).**
+
+- **Feedback intake + validation** (`astra/learning/feedback.py`): `make_feedback`
+  + `validate_feedback` cascade — source/authenticity → trust-tier policy →
+  plausibility → per-tier confidence → dedup; any failure quarantines with a
+  reason and never trains. Trust tiers + per-tier minimum confidence in
+  `astra/learning/__init__.py` (`TRUST_TIERS`).
+- **Experience store** (`astra/learning/experience.py`): append-only JSONL at
+  `learning/store/store.jsonl` (git-ignored); kinds `sft` / `preference` /
+  `fact`; content dedup (re-submission no-op), quarantine/withdraw audit,
+  provenance `feedback_id` back to the source feedback record.
+- **Candidate trainer** (`astra/learning/candidate.py`): fine-tunes a candidate
+  **off the active checkpoint** (never in place) on validated SFT experiences +
+  replay stream (`replay_ratio`) to prevent forgetting; separate candidate
+  artifact with provenance manifest (base sha256, experience ids, replay
+  tokens, seed, git commit); deterministic per (seed, config).
+- **Eval driver** (`tools/learning_loop.py`): intake → store → candidate →
+  base-vs-candidate mean-CE on a **held-out target partition** (proves
+  generalization) and a **regression partition** (flags forgetting);
+  provisional accept/reject. `tools/learning_eval.py` = substring-hit
+  cross-check of two checkpoints on a versioned JSON eval set.
+- **Reproducible demo**: 10 validated human-verified experiences teach the toy
+  `name` checkpoint a new fact ("Astra is from Nova"). Candidate improves the
+  held-out Nova partition by **−0.775 CE** (base 5.155 → 4.380) while the
+  Astra regression partition moves **+0.009 CE** (no forgetting); accepted.
+  Every improvement traces to the 10 experience ids.
+- **Tests**: `tests/learning/` (10 store/intake + 2 candidate-trainer tests);
+  full suite green; ruff clean on new/changed files.
 
 ## 0.5.0 (2026-09-09) — Memory (Phase 4)
 

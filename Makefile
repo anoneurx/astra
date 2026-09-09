@@ -1,7 +1,7 @@
 PYTHON ?= python3
 THREADS ?= 8
 
-.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem
+.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop
 
 benchmark: ## run the ACTIVE core-basic gate on the registered name checkpoint
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/benchmark.py \
@@ -17,6 +17,9 @@ memory-qa: ## long-form-QA RAG-vs-baseline measurement (ADVISORY, tools/memory_q
 rust-mem: ## build Rust astra-rt + astramem and run memory cross-check
 	cargo build --release -p astra-rt --manifest-path service/rust/Cargo.toml
 	$(PYTHON) tools/rust_mem_crosscheck.py
+
+learning-loop: ## run the Phase-5 candidate learning loop (validated feedback -> candidate)
+	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/learning_loop.py
 
 registry: ## show registered artifacts + verify checksums
 	$(PYTHON) tools/registry.py list

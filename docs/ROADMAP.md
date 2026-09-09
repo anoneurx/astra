@@ -166,6 +166,33 @@ parked Astra-5M (RAG generation benefit measured there). See
 - **Risks:** Feedback poisoning; overfitting to feedback distribution; reward hacking.
 - **Exit criteria:** Astra 0.7 released; learning pipeline documented and reproducibly run.
 
+**Phase-5 core implemented (Astra 0.7 core, 2026-09-09):**
+
+- **Feedback intake + validation** (`astra/learning/feedback.py`): `make_feedback`,
+  `validate_feedback` cascade (source → trust-tier policy → plausibility →
+  confidence → dedup) with quarantine on any failure; per-tier minimum training
+  confidence from `TRUST_TIERS` (`astra/learning/__init__.py`).
+- **Experience store** (`astra/learning/experience.py`): append-only JSONL at
+  `learning/store/store.jsonl` (git-ignored); kinds `sft`/`preference`/`fact`;
+  content dedup (re-submission no-op), quarantine/withdraw audit, provenance
+  `feedback_id`. 10 store/intake tests.
+- **Candidate trainer** (`astra/learning/candidate.py`): fine-tunes off the
+  active checkpoint on validated SFT experiences + replay stream
+  (`replay_ratio`) to prevent forgetting; separate candidate artifact with
+  provenance manifest (base sha256, experience ids, replay tokens, seed, git
+  commit). Deterministic per (seed, config). 2 trainer tests.
+- **Learning-loop driver** (`tools/learning_loop.py`): intake → store →
+  candidate → base-vs-candidate mean-CE on held-out target + regression
+  partitions; provisional accept/reject. Reproducible end-to-end demo on the
+  toy `name` checkpoint: target Nova partition **−0.775 CE** (learned new fact
+  "Astra is from Nova" from 10 validated human-verified experiences, on
+  *held-out* paraphrases → generalization) and regression Astra partition
+  **+0.009 CE** (no forgetting). `tools/learning_eval.py` = substring-hit
+  cross-check.
+- **Remaining for exit:** preference-pair (ranking) trainer path; automated
+  promotion gate + rollout (Phase 6); feedback-confidence reward-weight
+  research; live leak coverage.
+
 ## Phase 6 — Self-Improvement
 
 - **Objective:** Automate the candidate → evaluate → accept/reject → deploy loop with human approval gates.

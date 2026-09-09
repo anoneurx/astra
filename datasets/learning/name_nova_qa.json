@@ -1,0 +1,26 @@
+{
+  "name": "nova-fact",
+  "version": "1.0.0",
+  "kind": "learning-eval",
+  "description": "Held-out paraphrase eval for the 'Nova' concept taught via Phase-5 learning. Target items test generalization (paraphrases not seen in training experiences); regression items test the pre-existing 'Astra' capability is not forgotten.",
+  "sets": {
+    "target_nova": {
+      "description": "New concept learned through validated feedback — paraphrased prompts",
+      "items": [
+        {"prompt": "Which planet is Astra's home?", "contains": ["Nova"]},
+        {"prompt": "Astra resides on which world?", "contains": ["Nova"]},
+        {"prompt": "What is the name of Astra's planet?", "contains": ["Nova"]},
+        {"prompt": "Tell me where Astra comes from.", "contains": ["Nova"]},
+        {"prompt": "Astra is native to which planet?", "contains": ["Nova"]}
+      ]
+    },
+    "regression_astra": {
+      "description": "Pre-existing capability: Astra name — must NOT regress",
+      "items": [
+        {"prompt": "What is the name of this assistant?", "contains": ["Astra"]},
+        {"prompt": "Who is the model that helps you?", "contains": ["Astra"]},
+        {"prompt": "What should I call you?", "contains": ["Astra"]}
+      ]
+    }
+  }
+}
