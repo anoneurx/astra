@@ -11,8 +11,10 @@ on 10 validated human-verified facts improves held-out target-partition loss by
 adds the automated promotion gate (`astra/learning/gates.py`), registry
 promotion/rollback (`astra/registry.py`), append-only audit
 (`astra/learning/audit.py`), and the supervised worker with rollback drill
-(`tools/self_improve.py`). Reward-weight tuning, threshold curves, curriculum,
-and autonomous unattended deployment remain open research.
+(`tools/self_improve.py`). Phase-7 (Astra 1.0) folds the whole chain into one
+gated E2E walk (`tools/e2e.py`) that resolves the active model from the registry
+and exercises every subsystem in order. Reward-weight tuning, threshold curves,
+curriculum, and autonomous unattended deployment remain open research.
 
 ---
 
@@ -257,6 +259,7 @@ Everything traces to the 10 `human_verification`-tier experiences in the store.
 | Registry promotion | `astra/registry.py` | `promote` / `rollback` / `history` / `current` over the immutable append-only registry |
 | Audit log | `astra/learning/audit.py` | `AuditLog` — append-only JSONL at `learning/audit.jsonl` (promote/reject/rollback/approve with decision verbatim) |
 | Supervised worker | `tools/self_improve.py` | intake → candidate → measure → gate → promote/reject → audit; `--rollback-drill` |
+| Full-stack E2E walk | `tools/e2e.py` (+ `tests/test_e2e.py`) | Phase-7 harness: tokenizer → registry(active) → model → inference → memory → learning → gates → promote/reject → audit in one gated command |
 
 ### 6.3 What remains for Phase-5/6 exit / Phase 7
 

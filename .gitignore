@@ -21,6 +21,7 @@ memory/store/
 learning/store/
 learning/audit.jsonl
 checkpoints/candidate/
+checkpoints/e2e/
 benchmarks/results/
 
 # Experiments / logs

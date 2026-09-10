@@ -226,7 +226,7 @@ parked Astra-5M (RAG generation benefit measured there). See
 - **Demonstration (reproducible)**: candidate improves held-out target
   **−0.775 CE**, regression **+0.009 CE** → ACCEPT → promoted `astra-name`
   0.9.0 in the registry; rollback drill restores the prior active sha; audit
-  trail records both. 25 `tests/learning/` tests; full suite 143 green; ruff
+  trail records both. 25 `tests/learning/` tests; full suite 148 green; ruff
   clean.
 - **Remaining for exit:** alerting (console report only), autonomous
   unattended deployment (supervised-only until Phase 7), drift detection
@@ -243,6 +243,27 @@ parked Astra-5M (RAG generation benefit measured there). See
 - **Tests:** E2E, integration, adversarial, rollback drills, documentation completeness checks.
 - **Risks:** Integration complexity; maintainability; drift.
 - **Exit criteria:** Astra 1.0 released.
+
+### Achieved (Phase 7 increment 1 — full-stack E2E walk)
+
+- **`tools/e2e.py`** — one gated command walks every subsystem with its
+  production module: tokenizer → registry (resolve active, sha-integrity check)
+  → model.load (params) → inference.sample (deterministic decode) →
+  memory.recall (append + retrieve) → learning intake + no-leak gate →
+  candidate (immutable per-run artifact) → base-vs-candidate measure →
+  GateEngine decision → registry.promote / audit. Any red step aborts non-zero.
+- **`tests/test_e2e.py`** (3) — in-process full-stack walks on a freshly-trained
+  tiny model: promote path, reject-keeps-base path, and leak-aborts-pipeline
+  path (a red pipeline refuses to train on leaked target lines).
+- **Demonstration (reproducible):** against the registry-backed active base the
+  walk produced ACCEPT ×2 (target CE 5.155 → 4.380 → 3.953; regression within
+  bounds) then REJECT at the optimum — a genuine multi-step improvement cycle,
+  fully audited (15 audit rows: 7 promote, 5 rollback, 3 reject).
+- **Robustness surfaced by the walk:** candidate artifacts are written to
+  immutable `checkpoints/candidate/runs/<tag>/` so they can never overwrite the
+  active model the registry points at (registry integrity check enforces it).
+- **Remaining for exit:** release-checklist automation (`make release`-style),
+  interface freeze, and the long supervised window → `docs/PHASE_STATUS.md`.
 
 ## Phase 8 — Continuous Evolution
 

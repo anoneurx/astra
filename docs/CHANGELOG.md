@@ -2,11 +2,19 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), Phase-5 Learning core (Astra 0.7.0), and Phase-6 Self-Improvement core (Astra 0.9.0) implemented and tested.
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), Phase-5 Learning core (Astra 0.7.0), Phase-6 Self-Improvement core (Astra 0.9.0) implemented and tested, and Phase-7 Full-Stack E2E walks (Astra 1.0.0, increment 1) delivered (`tools/e2e.py`, `tests/test_e2e.py`).
 
 ---
 
 ## 0.9.0 (2026-09-09) — Self-Improvement (Phase 6 core)
+
+**Phase-7 (First Stable System, Astra 1.0.0) increment 1:** full-stack E2E walk
+`tools/e2e.py` + in-process `tests/test_e2e.py` (3 tests) — tokenizer →
+registry(active, integrity-checked) → model.load → inference.sample →
+memory.recall → learning intake → no-leak → candidate → measure → gates →
+promote/reject → audit. Demo produced a real multi-step improvement cycle
+(ACCEPT ×2: target CE 5.155→4.380→3.953, then REJECT at the optimum),
+fully audited. See `docs/PHASE_STATUS.md` (Phase-7 checklists).
 
 **Automated promotion gate + registry promotion/rollback + append-only audit;
 supervised continuous-improvement worker with a reproducible candidate-vs-active

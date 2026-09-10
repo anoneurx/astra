@@ -1,7 +1,7 @@
 PYTHON ?= python3
 THREADS ?= 8
 
-.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop self-improve rollback-drill
+.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop self-improve rollback-drill e2e
 
 benchmark: ## run the ACTIVE core-basic gate on the registered name checkpoint
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/benchmark.py \
@@ -26,6 +26,9 @@ self-improve: ## run the Phase-6 supervised self-improvement loop (gate -> promo
 
 rollback-drill: ## offline auto-rollback drill (promote regressing artifact, restore prior sha)
 	$(PYTHON) tools/self_improve.py --rollback-drill
+
+e2e: ## Phase-7 full-stack walk: tokenizer -> registry -> model -> inference -> memory -> learning -> gates -> promote -> audit
+	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/e2e.py
 
 registry: ## show registered artifacts + verify checksums
 	$(PYTHON) tools/registry.py list
