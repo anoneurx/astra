@@ -120,7 +120,7 @@ records/embedder/store/ranking/retrieval/injection + `tools/memory.py` CLI +
 flat exact retrieval with hybrid ranking + token budget; append-only JSONL
 audit; quarantine (leakage) gate as a retrieval exclusion;
 `core-retrieval` ADVISORY suite manifest with baselines (docs/BENCHMARKS.md
-§ 2.5). 23 engine tests.
+§ 2.5). 29 engine tests at release.
 
 **Gaps closed toward Astra 0.5 (2026-09-08):**
 - **G1 — inference integration done:** `service/inference.py`
