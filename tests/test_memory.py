@@ -360,3 +360,42 @@ def test_promote_makes_durable_record_with_attribution(store):
     other = store.add(_rec("foreign fact"))
     with pytest.raises(ValueError, match="does not belong"):
         promote(s, other.id)
+
+# ------------------------------------------------------------- compaction
+
+def test_compact_prunes_soft_deleted_and_dedups_duplicates(store):
+    a = store.add(_rec("the same fact content", kind="fact"))
+    b = store.add(_rec("the same fact content", kind="fact"))
+    c = store.add(_rec("a unique fact", kind="fact"))
+    store.soft_delete(c.id)
+
+    assert len(store.records()) == 2  # a, b active; c deleted
+    stats = store.compact()
+    assert stats["pruned_deleted"] == 1
+    assert stats["deduped"] == 1
+    assert stats["removed"] == 2
+    assert stats["active"] == 1
+
+    live = store.records()
+    assert len(live) == 1
+    assert live[0].id == b.id  # newest of the identical pair is kept
+    assert live[0].content == "the same fact content"
+    # a is deprecated, not physically gone (history preserved)
+    assert store.get(a.id, include_all=True) is not None
+    assert store.get(a.id) is None
+    # the soft-deleted record was physically pruned by compaction
+    assert store.get(c.id, include_all=True) is None
+    # every removal was audited
+    actions = [line["action"] for line in map(json.loads,
+                                              store.audit_path.read_text().splitlines())]
+    assert "compact" in actions
+
+
+def test_compact_scoped_to_kind(store):
+    store.add(_rec("dup", kind="fact"))
+    store.add(_rec("dup", kind="fact"))
+    store.add(_rec("dup", kind="semantic"))
+    stats = store.compact(kinds=["semantic"])
+    assert stats["deduped"] == 0
+    stats = store.compact(kinds=["fact"])
+    assert stats["deduped"] == 1

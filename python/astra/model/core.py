@@ -16,6 +16,8 @@ residual-stream gradient. All operations are float32 ndarrays.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
+from typing import Literal, overload
 
 import numpy as np
 
@@ -299,6 +301,12 @@ class LiteLM:
         self.ffn = [SwiGLUBLock(cfg, rng, i) for i in range(cfg.n_layers)]
         self.ln_f = _make_norm(cfg)
 
+    @overload
+    def forward(self, ids: np.ndarray, hidden: Literal[False] = False) -> np.ndarray: ...
+
+    @overload
+    def forward(self, ids: np.ndarray, hidden: Literal[True]) -> tuple[np.ndarray, np.ndarray]: ...
+
     def forward(self, ids: np.ndarray, hidden: bool = False) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """Forward pass — ``forward(ids) -> logits`` (B, T, V).
 
@@ -391,12 +399,87 @@ def mean_cross_entropy(logp: np.ndarray, targets: np.ndarray) -> float:
     return float(-np.take_along_axis(logp, targets[..., None], axis=-1).mean())
 
 
+def ce_and_grad(logits: np.ndarray, targets: np.ndarray) -> tuple[float, np.ndarray]:
+    """Cross-entropy loss and its gradient w.r.t. logits.
+
+    Shared by ``LiteLM.backward`` and ``preference_backward`` so that DPO
+    training can compute good/bad CE losses and gradients without mutating the
+    model's cached activation state between forward-backward pairs.
+    """
+    B, T, V = logits.shape
+    logp = log_softmax(logits)
+    loss = float(-np.take_along_axis(logp, targets[..., None], axis=-1).mean())
+    onehot = np.zeros((B, T, V), dtype=np.float32)
+    onehot[np.arange(B)[:, None], np.arange(T)[None, :], targets] = 1.0
+    grad = (np.exp(logp) - onehot) / (B * T)
+    return loss, grad
+
+
+def _preference_backprop(model: LiteLM, x: np.ndarray, dlogits: np.ndarray, ln_out: np.ndarray) -> None:
+    """Push ``dlogits`` through the tied head + residual stream.
+
+    ``model._final_act`` and the per-block caches must already hold this
+    sequence's forward activations (the caller re-forwards before each call).
+    Accumulates into every trainable parameter's ``.grad``.
+    """
+    V = dlogits.shape[-1]
+    d = model.cfg.d_model
+    model.wte.grad += dlogits.reshape(-1, V).T @ ln_out.reshape(-1, d)
+    d_ln = dlogits @ model.wte.w
+    g = model.ln_f.backward(d_ln, model._final_act)
+    for f, a in zip(reversed(model.ffn), reversed(model.attn)):
+        g = g + f.backward(g)
+        g = g + a.backward(g)
+    model.wte.backward(g)
+    if model.cfg.pos_type == "learned":
+        model.pos_emb.backward(g)
+
+
+def preference_backward(
+    model: LiteLM,
+    x_good: np.ndarray,
+    y_good: np.ndarray,
+    x_bad: np.ndarray,
+    y_bad: np.ndarray,
+    beta: float = 0.1,
+) -> float:
+    """DPO-style preference backward pass (docs/LEARNING.md § 1.8).
+
+    ``(x_good, y_good)`` and ``(x_bad, y_bad)`` are shifted next-token
+    sequences (x = ids[:-1], y = ids[1:]). Computes the CE losses for both,
+    then the DPO weighting::
+
+        w = β · σ(β·(L_bad − L_good))
+        dL/dlogits = w · (softmax(good) − onehot_good) − w · (softmax(bad) − onehot_bad)
+
+    Each sequence's gradient is backpropagated through its *own* cached
+    activations (the model re-forwards each sequence before backprop, since a
+    single forward cache cannot hold both). All gradients accumulate into the
+    model parameter grads; the returned loss is the (signed) DPO objective for
+    logging.
+    """
+    logits_good = model.forward(x_good)            # cache = good
+    loss_good, grad_good = ce_and_grad(logits_good, y_good)
+    logits_bad = model.forward(x_bad)              # cache = bad
+    loss_bad, grad_bad = ce_and_grad(logits_bad, y_bad)
+
+    weight = float(1.0 / (1.0 + np.exp(-beta * (loss_bad - loss_good))))
+    w = beta * weight
+
+    model.forward(x_good)                          # refresh cache = good
+    _preference_backprop(model, x_good, w * grad_good, model._ln_out)
+    model.forward(x_bad)                           # refresh cache = bad
+    _preference_backprop(model, x_bad, -w * grad_bad, model._ln_out)
+
+    return w * loss_good - w * loss_bad
+
+
 def log_softmax(logits: np.ndarray) -> np.ndarray:
     shifted = logits - logits.max(axis=-1, keepdims=True)
     return shifted - np.log(np.exp(shifted).sum(axis=-1, keepdims=True))
 
 
-def all_params(model: LiteLM) -> list[tuple[str, np.ndarray, np.ndarray]]:
+def all_params(model: LiteLM) -> Iterator[tuple[str, np.ndarray, np.ndarray]]:
     """Yield (name, weights, grads) for every trainable parameter."""
     for name in ("wte",):
         w = getattr(model, name)

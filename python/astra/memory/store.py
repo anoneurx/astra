@@ -179,6 +179,8 @@ class MemoryStore:
         if entry["state"] == DEPRECATED:
             rid = self._follow_head(rid)
             entry = self._get_entry(rid)
+            if entry is None:
+                raise KeyError(f"no such record {rid}")
         original: MemoryRecord = entry["record"]
         new = corrected_record(original, content, **overrides)
         new.validate()
@@ -281,7 +283,8 @@ class MemoryStore:
                     expired.append(rec.id)
         for rid in expired:
             entry = self._get_entry(rid)
-            entry["state"] = DELETED
+            if entry is not None:
+                entry["state"] = DELETED
             self._heads.pop(rid, None)
             self._dirty = True
             self._commit("expire", {"id": rid})
@@ -304,6 +307,68 @@ class MemoryStore:
         return out
 
     # --------------------------------------------------------------- reads
+
+    def compact(
+        self,
+        prune_deleted: bool = True,
+        dedupe: bool = True,
+        kinds: Iterable[str] | None = None,
+    ) -> dict[str, int]:
+        """Durable-memory growth maintenance (docs/ROADMAP.md § Phase 8).
+
+        Shrinks the active memory surface without rewriting history:
+        - ``prune_deleted`` physically removes soft-deleted entries (already
+          inaccessible; audit rows preserve the reason).
+        - ``dedupe`` marks older ACTIVE records with identical content + kind
+          as DEPRECATED, keeping the newest of each clone group (the revision
+          chain is untouched; DEPRECATED rows remain in the file for audit).
+        Every removal is audit-trailed (``compact`` rows) and the store is
+        saved once at the end. Returns counts: pruned_deleted / deduped /
+        removed / active (after).
+        """
+        kinds = set(kinds) if kinds is not None else set(MEMORY_KINDS)
+        stats: dict[str, int] = {"pruned_deleted": 0, "deduped": 0, "removed": 0}
+
+        if prune_deleted:
+            for rid in [r for r, e in self._entries.items() if e["state"] == DELETED]:
+                del self._entries[rid]
+                self._heads.pop(rid, None)
+                stats["pruned_deleted"] += 1
+                stats["removed"] += 1
+                self._dirty = True
+                self._commit("compact", {"id": rid, "subaction": "prune_deleted",
+                                         "reason": "soft-deleted at compaction"})
+
+        if dedupe:
+            groups: dict[tuple[str, str | None], list[str]] = {}
+            for e in self._entries.values():
+                rec = e["record"]
+                if e["state"] != ACTIVE or rec.kind not in kinds:
+                    continue
+                key = (rec.kind, stable_hash(rec.content))
+                groups.setdefault(key, []).append(rec.id)
+            for rids in groups.values():
+                if len(rids) < 2:
+                    continue
+                rids_sorted = sorted(
+                    rids,
+                    key=lambda r: (self._entries[r]["record"].created_at,
+                                   self._entries[r]["record"].revision),
+                )
+                keep = rids_sorted[-1]
+                for rid in rids_sorted[:-1]:
+                    self._entries[rid]["state"] = DEPRECATED
+                    stats["deduped"] += 1
+                    stats["removed"] += 1
+                    self._dirty = True
+                    self._commit("compact", {"id": rid, "subaction": "dedupe",
+                                             "keep": keep, "kind": self._entries[keep]["record"].kind})
+
+        stats["active"] = sum(1 for e in self._entries.values() if e["state"] == ACTIVE)
+        if self._dirty:
+            self.meta["last_compact"] = now_iso()
+            self._save()
+        return stats
 
     def search(
         self,

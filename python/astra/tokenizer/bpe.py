@@ -7,12 +7,69 @@ reserved special-token ids, exact byte round-trip decoding.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
 ID_BYTE_MASK = 0xFFFF
+
+
+def _best_pair(counts: Mapping[tuple[int, int], int]) -> tuple[tuple[int, int], int]:
+    """Most frequent adjacent pair; ties break on lowest (a, b) lexicographic.
+
+    Matches the reference full-rescan selection (numpy unique sort order +
+    first argmax), keeping training deterministic and identical between the
+    incremental and rescan implementations.
+    """
+    return min(counts.items(), key=lambda kv: (-kv[1], kv[0][0], kv[0][1]))
+
+
+def _merge_positions(ids: np.ndarray, a: int, b: int) -> np.ndarray:
+    """Indices of non-overlapping (a, b) occurrences (same greediness as before)."""
+    pos = np.nonzero((ids[:-1] == a) & (ids[1:] == b))[0]
+    if pos.size > 1:
+        keep = np.ones(pos.size, dtype=bool)
+        keep[1:] = pos[1:] != pos[:-1] + 1
+        pos = pos[keep]
+    return pos
+
+
+def _update_counts(
+    counts: dict[tuple[int, int], int],
+    old_ids: np.ndarray,
+    old_pos: np.ndarray,
+    out_ids: np.ndarray,
+    out_pos: np.ndarray,
+) -> None:
+    """Apply local adjacency deltas after one merge, matching a full recount.
+
+    Only pair indices whose left or right element was replaced are touched:
+    {p-1, p, p+1} around each old merged position and {q-1, q} around each
+    output position; duplicates are set-deduped so counts never drift.
+    """
+    n_old = int(old_ids.size)
+    removed: set[int] = set()
+    for p in old_pos:
+        removed.update((p - 1, p, p + 1))
+    for idx in removed:
+        if 0 <= idx < n_old - 1:
+            key = (int(old_ids[idx]), int(old_ids[idx + 1]))
+            c = counts.get(key, 0) - 1
+            if c > 0:
+                counts[key] = c
+            else:
+                counts.pop(key, None)
+
+    n_new = int(out_ids.size)
+    added: set[int] = set()
+    for q in out_pos:
+        added.update((q - 1, q))
+    for idx in added:
+        if 0 <= idx < n_new - 1:
+            key = (int(out_ids[idx]), int(out_ids[idx + 1]))
+            counts[key] = counts.get(key, 0) + 1
 
 
 @dataclass
@@ -52,25 +109,38 @@ class ByteLevelBPE:
 
     # ----- training -----
 
-    def train(self, corpus: bytes | str, max_merges: int | None = None) -> "ByteLevelBPE":
-        """Train BPE merges on the byte stream of *corpus*."""
+    def train(self, corpus: bytes | str, max_merges: int | None = None) -> ByteLevelBPE:
+        """Train BPE merges on the byte stream of *corpus*.
+
+        Uses incremental adjacent-pair counts (only pairs around each merged
+        position are touched per round) instead of rescans, so training is
+        O(N + V^2)-ish rather than O(V*N*logN) while producing the exact same
+        merge sequence as the reference full-rescan implementation.
+        """
         if isinstance(corpus, str):
             corpus = corpus.encode("utf-8")
         max_merges = max_merges or (self.vocab_size - self._first_merge_id)
         ids = np.frombuffer(corpus, dtype=np.uint8).astype(np.int64)
-        size_before = len(ids)
+        size_before = int(ids.size)
         merges: list[tuple[int, int, int]] = []
 
+        counts: dict[tuple[int, int], int] = {}
+        for i in range(int(ids.size) - 1):
+            key = (int(ids[i]), int(ids[i + 1]))
+            counts[key] = counts.get(key, 0) + 1
+
         for _ in range(max_merges):
-            if ids.size < 2:
+            if ids.size < 2 or not counts:
                 break
-            pair, count, first_pos = self._most_frequent_pair(ids)
+            pair, count = _best_pair(counts)
             if count < self.min_frequency:
                 break
             new_id = self._first_merge_id + len(merges)
-            ids, applied = self._apply_merge(ids, pair[0], pair[1], new_id)
+            out, new_pos, applied = self._apply_merge(ids, pair[0], pair[1], new_id)
             if applied == 0:  # pragma: no cover
                 break
+            _update_counts(counts, ids, _merge_positions(ids, pair[0], pair[1]), out, new_pos)
+            ids = out
             merges.append((int(pair[0]), int(pair[1]), new_id))
             self.merges = merges
             self.id_to_piece[new_id] = self.id_to_piece[int(pair[0])] + self.id_to_piece[int(pair[1])]
@@ -87,51 +157,38 @@ class ByteLevelBPE:
         )
         return self
 
-    def _most_frequent_pair(self, ids: np.ndarray) -> tuple[tuple[int, int], int, int]:
-        """Return ((a,b), count, 0) of the most frequent adjacent pair.
-
-        Ties break deterministically (lowest packed pair code)."""
-        if ids.size < 2:
-            return (0, 0), 0, 0
-        code = (ids[:-1] << 16) | ids[1:]  # packed pair code
-        counts = np.bincount(code, minlength=1 << 17)
-        best = int(np.argmax(counts))
-        count = int(counts[best])
-        pair = (best >> 16, best & ID_BYTE_MASK)
-        return pair, count, 0
-
     @staticmethod
-    def _apply_merge(ids: np.ndarray, a: int, b: int, new_id: int) -> tuple[np.ndarray, int]:
-        pos = np.nonzero((ids[:-1] == a) & (ids[1:] == b))[0]
+    def _apply_merge(
+        ids: np.ndarray, a: int, b: int, new_id: int
+    ) -> tuple[np.ndarray, np.ndarray, int]:
+        """Merge non-overlapping (a,b) occurrences; return (out, pos_of_new, n)."""
+        pos = _merge_positions(ids, a, b)
         n = pos.size
         if n == 0:
-            return ids, 0
-        keep = np.ones(n, dtype=bool)
-        keep[1:] = pos[1:] != pos[:-1] + 1
-        pos = pos[keep]
+            return ids, np.empty(0, dtype=np.int64), 0
         out = np.empty(int(ids.size - pos.size), dtype=np.int64)
+        new_positions = np.empty(int(pos.size), dtype=np.int64)
         cursor = 0
         write = 0
-        for p in pos:
+        for k, p in enumerate(map(int, pos)):
             seg = ids[cursor : p + 1]  # include the 'a'
             out[write : write + seg.size - 1] = seg[:-1]
             write += seg.size - 1
             out[write] = new_id
+            new_positions[k] = write
             write += 1
             cursor = p + 2
         seg = ids[cursor:]
         out[write : write + seg.size] = seg
-        return out, int(pos.size)
+        return out, new_positions, int(pos.size)
 
     # ----- encoding / decoding -----
 
     def encode(self, text: str) -> list[int]:
         data = text.encode("utf-8", "surrogatepass")
-        ids = np.zeros(len(data), dtype=np.int64)
-        for i, b in enumerate(data):
-            ids[i] = self.byte_to_id[b]
+        ids = np.array([self.byte_to_id[b] for b in data], dtype=np.int64)
         for (a, b, new_id) in self.merges:
-            ids, _ = self._apply_merge(ids, a, b, new_id)
+            ids, _pos, _applied = self._apply_merge(ids, a, b, new_id)
         return ids.tolist()
 
     def encode_batch(self, texts: list[str]) -> list[list[int]]:
@@ -162,7 +219,7 @@ class ByteLevelBPE:
         Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True))
 
     @classmethod
-    def load(cls, path: str | Path) -> "ByteLevelBPE":
+    def load(cls, path: str | Path) -> ByteLevelBPE:
         payload = json.loads(Path(path).read_text())
         tok = cls(
             vocab_size=payload["vocab_size"],

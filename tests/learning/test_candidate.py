@@ -120,3 +120,39 @@ def test_candidate_checkpoint_is_loadable(infra):
     step, _hist, meta = load_checkpoint(res.checkpoint, m, None, None)
     assert step >= 0
     assert meta["candidate_config"]["max_steps"] == 10
+
+
+def test_preference_training_prefers_good_path(infra):
+    tok, cfg = infra["tok"], infra["cfg"]
+    base_ck = infra["base_ck"]
+
+    good_text = "The bird is called Nova."
+    bad_text = "The bird is called Quark."
+    experiences = [
+        {
+            "id": "p1", "kind": "preference",
+            "payload": {"input": "", "good": good_text, "bad": bad_text},
+            "feedback_id": "f3", "source": "human", "confidence": 0.99,
+            "verification_status": "human_verified", "trust_tier": "human_verification",
+            "status": "active", "dedup_key": "p1",
+        },
+    ]
+    replay = np.array(tok.encode(CONCEPT_A * 40), dtype=np.int32)
+    out = str(infra["tmp"] / "candidate_pref")
+    cc = CandidateConfig(max_steps=60, peak_lr=5e-3, warmup_steps=6,
+                         batch_seq=2, replay_ratio=0.2, preference_beta=0.5)
+    res = train_candidate(
+        base_checkpoint=base_ck, tokenizer=tok, model_config=cfg,
+        experiences=experiences, replay_ids=replay, config=cc, out_dir=out, seed=0,
+    )
+
+    model = LiteLM(cfg, seed=0)
+    load_checkpoint(res.checkpoint, model, None, None)
+    loss_good = _loss(model, tok, good_text)
+    loss_bad = _loss(model, tok, bad_text)
+
+    # after DPO the model must prefer the good path over the bad one
+    assert loss_good < loss_bad, f"expected good<bad: good={loss_good:.3f} bad={loss_bad:.3f}"
+    # the preference example actually drove a DPO step, not just SFT
+    assert res.manifest["n_preference"] == 1
+    assert res.manifest["n_lm"] == 1

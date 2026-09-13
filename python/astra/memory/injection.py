@@ -62,3 +62,20 @@ def build_memory_block(
     text = "\n".join(parts)
     tokens = tokenizer.encode(text) if tokenizer else []
     return MemoryBlock(text=text, tokens=tokens, included=hits[:count], dropped=hits[count:])
+
+
+def search_memory_block(
+    store: Any,
+    query: str,
+    tokenizer: Any,
+    k: int = 4,
+    budget_tokens: int = 256,
+) -> MemoryBlock:
+    """Retrieve memories for ``query`` and assemble the ``<|memory|>`` block.
+
+    Thin composition of ``MemoryStore.search`` + ``build_memory_block`` shared
+    by the inference service and the learning tools so conditioning is identical
+    at generate time and candidate-training time (docs/MEMORY.md § 9).
+    """
+    hits = store.search(query=query, k=k, budget_tokens=budget_tokens, tokenizer=tokenizer)
+    return build_memory_block(hits, tokenizer, budget_tokens=budget_tokens)

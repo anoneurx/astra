@@ -15,12 +15,40 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
 import numpy as np
-
 from astra.model import LiteLM, ModelConfig
 from astra.safety import leak_check
 from astra.tokenizer import ByteLevelBPE
 from astra.training import Corpus, train
 from astra.utils import read_json, sha256_file
+
+
+def _encoded_ids(
+    tok: ByteLevelBPE,
+    text: str,
+    tok_path: str,
+    split: str,
+    corpus_path: Path,
+    cache_dir: str | None,
+) -> list[int]:
+    """Encode a split, memoized to ``cache_dir`` keyed by content hashes.
+
+    Chunked/resumed training re-invokes this on every run; caching the encoded
+    ids (corpus sha + tokenizer sha) turns a repeated ~minute-scale encode into
+    an instant npy load.
+    """
+    if cache_dir:
+        key = f"{split}-{sha256_file(corpus_path)[:16]}-{sha256_file(tok_path)[:16]}"
+        cached = Path(cache_dir) / key / f"{split}.npy"
+        if cached.exists():
+            print(f"[data ] cache hit: {cached}")
+            return np.load(cached).tolist()
+    ids = tok.encode(text)
+    if cache_dir:
+        cached = Path(cache_dir) / key / f"{split}.npy"
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        np.save(cached, np.asarray(ids, dtype=np.int32))
+        print(f"[data ] cache write: {cached}")
+    return ids
 
 
 def main() -> None:
@@ -31,6 +59,7 @@ def main() -> None:
     ap.add_argument("--out", default=None, help="override out_dir")
     ap.add_argument("--experiments", default=None, help="override experiment_store dir")
     ap.add_argument("--resume", default=None, help="resume from checkpoint .npz")
+    ap.add_argument("--cache-dir", default=None, help="tokenized-corpus cache (external tmp)")
     args = ap.parse_args()
 
     raw = read_json(args.config)
@@ -50,8 +79,22 @@ def main() -> None:
     train_path = Path(raw["data"]["train"])
     val_path = Path(raw["data"]["val"])
 
-    train_ids = tok.encode(train_path.read_text(encoding="utf-8"))
-    val_ids = tok.encode(val_path.read_text(encoding="utf-8"))
+    train_ids = _encoded_ids(
+        tok,
+        train_path.read_text(encoding="utf-8"),
+        raw["tokenizer"],
+        "train",
+        train_path,
+        args.cache_dir,
+    )
+    val_ids = _encoded_ids(
+        tok,
+        val_path.read_text(encoding="utf-8"),
+        raw["tokenizer"],
+        "val",
+        val_path,
+        args.cache_dir,
+    )
 
     # safety gate: contamination check between train and val (docs/DATA.md § 3)
     leak = leak_check(train_ids, val_ids, n=13)

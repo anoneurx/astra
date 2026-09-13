@@ -1,0 +1,81 @@
+{
+  "dataset": "prose",
+  "pipeline": "tools/build_prose_corpus.py",
+  "source": "Project Gutenberg (US public domain)",
+  "license": "public domain (US); Project Gutenberg License applies to presentation",
+  "books": [
+    {
+      "id": "1342",
+      "title": "Pride and Prejudice",
+      "raw_sha256": "81300b79e8a8d65ac530a97578417d06137e3bbc90622a10a65e5036183d2500"
+    },
+    {
+      "id": "2701",
+      "title": "Moby Dick",
+      "raw_sha256": "547de799c1643ef231cc1efe45ffccefcb876ff3fe8f2206e7488529ad08f999"
+    },
+    {
+      "id": "11",
+      "title": "Alice in Wonderland",
+      "raw_sha256": "a3a27f8edbf7fcd9b8ba8435494440e24952deaa3e2f2d65192d4cb7ca403754"
+    },
+    {
+      "id": "1661",
+      "title": "Sherlock Holmes",
+      "raw_sha256": "b9c105a5c0cf9fcb37c7d0211658851ed56074519c9455d15e20f04c0c5a3174"
+    },
+    {
+      "id": "98",
+      "title": "A Tale of Two Cities",
+      "raw_sha256": "e3dfeb67feb904ac0f73a35204a175c58248422c2be8556802cb8820d958d67c"
+    },
+    {
+      "id": "84",
+      "title": "Frankenstein",
+      "raw_sha256": "06c37d2c52d208d3d81eb12c3b10b5edbd7728b73554325ddceadbe2fb427e77"
+    },
+    {
+      "id": "74",
+      "title": "The Adventures of Tom Sawyer",
+      "raw_sha256": "fe74f3e43a7c0a0d0189b40ce966ce73795559b63076ccc0ea2e8ba2b9a9b213"
+    },
+    {
+      "id": "43",
+      "title": "Dracula",
+      "raw_sha256": "34b5f8b36387fe472ce79b8cdab75d4b97783265a7f71e5729dc5b9a3dc14818"
+    },
+    {
+      "id": "408",
+      "title": "Heart of Darkness",
+      "raw_sha256": "8c21eaa84331b3c1087c3845bfeeb5358be0f06f2b6cc2b3d882aff7e5fb9575"
+    },
+    {
+      "id": "132",
+      "title": "The Art of War",
+      "raw_sha256": "0aa964ddb252df7f02e84174ff1a65c6fd971c067303c1da320f5734a3b05c37"
+    },
+    {
+      "id": "1080",
+      "title": "A Modest Proposal",
+      "raw_sha256": "dcabf7a133d50490f99d1ce496764d9f7f21a2008662f89ccfd77bc114732c98"
+    }
+  ],
+  "cleaning_rules": "strip Gutenberg START/END boilerplate; control-char scrub; paragraph dedup; whitespace normalize",
+  "splits": {
+    "train": {
+      "path": "datasets/prose/train.txt",
+      "sha256": "c7125f45db265b1b405e439a959c7ce24c4de71a16a9df26ca8dab70103e7b37",
+      "bytes": 4769499
+    },
+    "val": {
+      "path": "datasets/prose/val.txt",
+      "sha256": "66b530efca7d27db47fbf673112b9ef8bacb42c509128f05b42f7c7ba6c396f1",
+      "bytes": 311168
+    },
+    "eval": {
+      "path": "datasets/prose/eval.txt",
+      "sha256": "4d5eb11bc35167d7c3158c2ab0d869e02dbd15988034fcb037e5e857c1eb41e2",
+      "bytes": 19457
+    }
+  }
+}

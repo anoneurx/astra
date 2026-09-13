@@ -8,6 +8,7 @@ numeric state.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 
@@ -25,14 +26,14 @@ def save_checkpoint(
     loss_hist: list[float],
     meta: dict,
 ) -> str:
-    payload = {}
+    payload: dict[str, np.ndarray] = {}
     for name, w, _g in all_params(model):
         payload[f"w:{name}"] = w
     if opt is not None:
         for key in ("m", "v"):
             for name, arr in getattr(opt, key).items():
                 payload[f"{key}:{name}"] = arr
-    np.savez_compressed(path, **payload)
+    np.savez_compressed(path, **cast(dict[str, Any], payload))
     manifest = {
         **meta,
         "step": step,

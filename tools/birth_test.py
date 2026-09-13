@@ -23,14 +23,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
 import numpy as np
-
+from astra.evaluation.metrics import generate, repetition_fraction
 from astra.model import LiteLM, ModelConfig, all_params
+from astra.safety import leak_check
 from astra.tokenizer import ByteLevelBPE
-from astra.training import Corpus, SeqStream, train
+from astra.training import Corpus, train
 from astra.training.checkpoint import load_checkpoint, save_checkpoint
 from astra.training.optim import AdamW, CosineSchedule, clip_grad_norm
-from astra.evaluation.metrics import generate, repetition_fraction
-from astra.safety import leak_check
 
 
 def _load_model_and_tokenizer():
@@ -47,7 +46,7 @@ def _load_model_and_tokenizer():
 
 
 def test_tokenizer():
-    cfg, tok = _load_model_and_tokenizer()
+    _cfg, tok = _load_model_and_tokenizer()
     text = "section alpha: specifications (record 0)\nverify complete for record 0.\n"
     ids = tok.encode(text)
     decoded = tok.decode(ids)
@@ -57,10 +56,10 @@ def test_tokenizer():
 
 
 def test_forward_pass():
-    cfg, tok = _load_model_and_tokenizer()
+    cfg, _tok = _load_model_and_tokenizer()
     model = LiteLM(cfg, seed=42)
     ids = np.array([[1, 2, 3, 4, 5]], dtype=np.int64)
-    logits, loss = model.forward_loss(ids)
+    logits, _loss = model.forward_loss(ids)
     assert logits.shape == (1, 5, cfg.vocab_size), f"Wrong shape: {logits.shape}"
     assert np.isfinite(logits).all(), "Non-finite logits"
     assert model.num_params == 133440, f"Wrong param count: {model.num_params}"
@@ -68,7 +67,7 @@ def test_forward_pass():
 
 
 def test_backpropagation():
-    cfg, tok = _load_model_and_tokenizer()
+    cfg, _tok = _load_model_and_tokenizer()
     model = LiteLM(cfg, seed=42)
     ids = np.array([[1, 2, 3, 4, 5]], dtype=np.int64)
     targets = np.array([[2, 3, 4, 5, 6]], dtype=np.int64)
@@ -82,7 +81,7 @@ def test_backpropagation():
 
 
 def test_loss_decreases():
-    cfg, tok = _load_model_and_tokenizer()
+    cfg, _tok = _load_model_and_tokenizer()
     model = LiteLM(cfg, seed=42)
     opt = AdamW(model, lr=1e-3, weight_decay=0.1)
     ids = np.array([[1, 2, 3, 4, 5, 6, 7, 8]], dtype=np.int64)
@@ -100,7 +99,7 @@ def test_loss_decreases():
 
 
 def test_checkpoint_save_load():
-    cfg, tok = _load_model_and_tokenizer()
+    cfg, _tok = _load_model_and_tokenizer()
     model = LiteLM(cfg, seed=42)
     opt = AdamW(model, lr=1e-3)
     schedule = CosineSchedule(max_steps=100, warmup_steps=10, peak_lr=1e-3, min_lr=1e-5)
@@ -111,7 +110,7 @@ def test_checkpoint_save_load():
         assert Path(ckpt_path).exists(), "Checkpoint file not created"
         assert Path(ckpt_path.replace(".npz", ".manifest.json")).exists(), "Manifest not created"
         model2 = LiteLM(cfg, seed=99)
-        step, hist, meta = load_checkpoint(ckpt_path, model2, opt=None, schedule=None)
+        step, _hist, _meta = load_checkpoint(ckpt_path, model2, opt=None, schedule=None)
         assert step == 10, f"Step mismatch: {step}"
         for (n1, w1, _), (n2, w2, _) in zip(all_params(model), all_params(model2)):
             assert np.allclose(w1, w2), f"Weight mismatch after load: {n1}"
@@ -128,9 +127,9 @@ def test_generation():
     gen_ids = generate(model, tok, seed_ids, max_new=50, temperature=1.0, rng=rng)
     assert len(gen_ids) == 50, f"Wrong gen length: {len(gen_ids)}"
     try:
-        decoded = tok.decode(gen_ids)
+        tok.decode(gen_ids)
     except (UnicodeDecodeError, KeyError):
-        decoded = repr(b"".join(tok.id_to_piece.get(i, b"?") for i in gen_ids))
+        repr(b"".join(tok.id_to_piece.get(i, b"?") for i in gen_ids))
     rep = repetition_fraction(gen_ids, n=4)
     return True, f"gen={len(gen_ids)} tokens, repetition_4gram={rep:.3f}"
 

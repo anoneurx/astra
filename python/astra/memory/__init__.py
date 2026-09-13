@@ -1,5 +1,5 @@
 from astra.memory.embedder import HashEmbedder, LiteLMExtractor
-from astra.memory.injection import MemoryBlock, build_memory_block
+from astra.memory.injection import MemoryBlock, build_memory_block, search_memory_block
 from astra.memory.ranking import DEFAULT_WEIGHTS, hybrid_score
 from astra.memory.records import (
     MEMORY_KINDS,
@@ -34,4 +34,5 @@ __all__ = [
     "now_iso",
     "promote",
     "retrieve",
+    "search_memory_block",
 ]

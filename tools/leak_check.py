@@ -15,8 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
-from astra.safety import leak_check  # noqa: E402
-from astra.tokenizer import ByteLevelBPE  # noqa: E402
+from astra.safety import leak_check
+from astra.tokenizer import ByteLevelBPE
 
 
 def main() -> None:

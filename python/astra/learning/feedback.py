@@ -169,3 +169,14 @@ def build_sft_payload(fb: dict, accepted_output: str) -> dict:
 def build_preference_payload(fb: dict, good: str, bad: str) -> dict:
     """Preference pair (input, good, bad) from compared feedback."""
     return {"input": fb.get("context", "").strip(), "good": good, "bad": bad}
+
+
+__all__ = [
+    "TIER_MIN_CONFIDENCE",
+    "VERIFIED_STATUSES",
+    "build_preference_payload",
+    "build_sft_payload",
+    "make_feedback",
+    "route_to_examples",
+    "validate_feedback",
+]

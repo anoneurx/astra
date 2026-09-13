@@ -277,3 +277,6 @@ class ModelRegistry:
             old.extra["rolled_back_to"] = created_at
         self.save()
         return self._entries.get(prev_sha)
+
+
+__all__ = ["ArtifactRecord", "ModelRegistry"]

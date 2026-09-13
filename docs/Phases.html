@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Astra — Phases</title>
+<style>
+  :root {
+    --bg:        #06090f;
+    --bg-card:   #0c1220;
+    --bg-hover:  #111c30;
+    --border:    #1a2744;
+    --accent:    #3b82f6;
+    --accent-dim:#1e4a8a;
+    --green:     #22c55e;
+    --yellow:    #eab308;
+    --red:       #ef4444;
+    --cyan:      #06b6d4;
+    --text:      #d6e0f0;
+    --text-dim:  #7b8da6;
+    --font:      "Inter", system-ui, -apple-system, sans-serif;
+    --mono:      "JetBrains Mono", "Fira Code", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.7;
+    padding: 2rem 1rem 4rem;
+    min-height: 100vh;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Status table */
+  .status-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2.5rem;
+    font-size: 0.92rem;
+  }
+  .status-table th,
+  .status-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .status-table th {
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .status-table tr:hover td { background: var(--bg-hover); }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.15em 0.6em;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .badge.done    { background: #16442a; color: var(--green); }
+  .badge.active  { background: #3d3206; color: var(--yellow); }
+  .badge.planned { background: #1a1e2a; color: var(--text-dim); }
+  .badge.research{ background: #1a0f2a; color: var(--cyan); }
+
+  /* Phase cards */
+  .phase {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.6rem 1.8rem;
+    margin-bottom: 1.5rem;
+    transition: border-color 0.2s;
+  }
+  .phase:hover { border-color: var(--accent-dim); }
+
+  .phase-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    margin-bottom: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .phase-header h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .phase-version {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+  .phase-desc {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .steps {
+    list-style: none;
+    padding: 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 0.3rem 0 0.3rem 1.8rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .steps li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 2px solid var(--border);
+    background: transparent;
+  }
+  .steps li.done::before {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .steps li.done::after {
+    content: '✓';
+    position: absolute;
+    left: 2px;
+    top: 0.28rem;
+    font-size: 0.7rem;
+    color: #fff;
+    font-weight: 700;
+  }
+  .steps li.open::before {
+    border-color: var(--yellow);
+    background: transparent;
+  }
+
+  /* Phase border accent */
+  .phase.done   { border-left: 3px solid var(--green); }
+  .phase.active { border-left: 3px solid var(--yellow); }
+  .phase.planned{ border-left: 3px solid var(--border); }
+  .phase.research{ border-left: 3px solid var(--cyan); }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .legend span::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+  .legend .lg-done::before    { background: var(--green); }
+  .legend .lg-active::before  { background: var(--yellow); }
+  .legend .lg-planned::before { background: var(--border); }
+  .legend .lg-research::before{ background: var(--cyan); }
+
+  footer {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>ASTRA PHASES</h1>
+  <p>Phase-level completion status for the Astra project. Source of truth:
+     <code>docs/PHASE_STATUS.md</code>, <code>docs/ROADMAP.md</code>,
+     <code>docs/CHANGELOG.md</code>.</p>
+</header>
+
+<div class="legend">
+  <span class="lg-done">Done</span>
+  <span class="lg-active">In progress</span>
+  <span class="lg-planned">Planned</span>
+  <span class="lg-research">Research</span>
+</div>
+
+<table class="status-table">
+  <thead>
+    <tr><th>Phase</th><th>Release</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0 — Research</td>     <td>0.0.1</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>1 — Birth</td>        <td>0.1.0</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>2 — Foundation</td>   <td>0.2.0</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>3 — Core</td>         <td>0.3.0 / 0.4.0</td><td><span class="badge active">In progress</span></td></tr>
+    <tr><td>4 — Memory</td>       <td>0.5.0</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>5 — Learning</td>     <td>0.7.0</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>6 — Self-Improvement</td><td>0.9.0</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>7 — Stable</td>       <td>1.0.0</td><td><span class="badge active">In progress</span></td></tr>
+    <tr><td>8 — Evolution</td>    <td>1.x</td><td><span class="badge active">Engineering complete</span></td></tr>
+    <tr><td>9 — Advanced</td>     <td>2.0</td><td><span class="badge research">Research</span></td></tr>
+  </tbody>
+</table>
+
+<!-- Phase 0 -->
+<section class="phase done">
+  <div class="phase-header">
+    <h2>Phase 0 — Research</h2>
+    <span class="phase-version">Astra 0.0.1</span>
+    <span class="badge done">Done</span>
+  </div>
+  <p class="phase-desc">Foundation, specification, and tooling.</p>
+  <ul class="steps">
+    <li class="done">Define Astra's philosophy</li>
+    <li class="done">Architecture specification</li>
+    <li class="done">Data strategy</li>
+    <li class="done">Compute requirements</li>
+    <li class="done">Training methodology</li>
+    <li class="done">Evaluation methodology</li>
+    <li class="done">Safety boundaries</li>
+  </ul>
+</section>
+
+<!-- Phase 1 -->
+<section class="phase done">
+  <div class="phase-header">
+    <h2>Phase 1 — Birth</h2>
+    <span class="phase-version">Astra 0.1.0</span>
+    <span class="badge done">Done</span>
+  </div>
+  <p class="phase-desc">Working small language model checkpoint (toy corpus; loss &lt; 4.0 reproducible).</p>
+  <ul class="steps">
+    <li class="done">Custom tokenizer</li>
+    <li class="done">Embeddings</li>
+    <li class="done">Transformer</li>
+    <li class="done">Attention</li>
+    <li class="done">Feed-forward layers</li>
+    <li class="done">Training loop</li>
+    <li class="done">Checkpoints</li>
+    <li class="done">Basic text generation</li>
+  </ul>
+</section>
+
+<!-- Phase 2 -->
+<section class="phase done">
+  <div class="phase-header">
+    <h2>Phase 2 — Foundation</h2>
+    <span class="phase-version">Astra 0.2.0</span>
+    <span class="badge done">Done</span>
+  </div>
+  <p class="phase-desc">Reproducible, configurable training pipeline. LR sweeps, mixed precision, distributed hooks deferred.</p>
+  <ul class="steps">
+    <li class="done">Better tokenizer</li>
+    <li class="done">Better dataset pipeline</li>
+    <li class="done">Improved training stability</li>
+    <li class="done">Validation system</li>
+    <li class="done">Loss/perplexity monitoring</li>
+    <li class="done">Reproducible experiments</li>
+    <li class="open">LR sweeps / mixed precision / distributed hooks <span style="color:var(--text-dim)">(deferred)</span></li>
+  </ul>
+</section>
+
+<!-- Phase 3 -->
+<section class="phase active">
+  <div class="phase-header">
+    <h2>Phase 3 — Core</h2>
+    <span class="phase-version">Astra 0.3.0 / 0.4.0</span>
+    <span class="badge active">In progress</span>
+  </div>
+  <p class="phase-desc">Stable neural core: config variants, inference, context handling, quantization preview, benchmarking, and the productization tail. Full-size core model parked per PLAN-ASTRA-5M.</p>
+  <ul class="steps">
+    <li class="done">More capable Transformer (config variants + ablation rig)</li>
+    <li class="done">Better inference (KV-cache decoder, top-k/top-p, streaming, extended context)</li>
+    <li class="done">Context handling (RoPE theta-extension, sliding window)</li>
+    <li class="done">Quantization experiments (fp16/bf16/int8 preview)</li>
+    <li class="done">Model benchmarking (harness v1 + suites + gates)</li>
+    <li class="open">Full-size core model release (Astra-300M/700M, parked on Astra-5M plan)</li>
+  </ul>
+</section>
+
+<!-- Phase 4 -->
+<section class="phase done">
+  <div class="phase-header">
+    <h2>Phase 4 — Memory</h2>
+    <span class="phase-version">Astra 0.5.0</span>
+    <span class="badge done">Done</span>
+  </div>
+  <p class="phase-desc">External memory system; gaps G1–G6 closed. RAG-generation signal measured on Astra-5M (parked).</p>
+  <ul class="steps">
+    <li class="done">Short-term memory (SessionMemory)</li>
+    <li class="done">Long-term memory (durable store + lifecycle)</li>
+    <li class="done">Semantic retrieval (embedding + hybrid ranking + token budget)</li>
+    <li class="done">Experience storage (append-only store + audit)</li>
+    <li class="done">Knowledge management (correction revisions, expiry, dispute/resolve)</li>
+    <li class="done">Retrieval evaluation (long-form QA set + core-retrieval suite)</li>
+    <li class="open">RAG generation-benefit measured on Astra-5M <span style="color:var(--text-dim)">(parked)</span></li>
+  </ul>
+</section>
+
+<!-- Phase 5 -->
+<section class="phase done">
+  <div class="phase-header">
+    <h2>Phase 5 — Learning</h2>
+    <span class="phase-version">Astra 0.7.0</span>
+    <span class="badge done">Done</span>
+  </div>
+  <p class="phase-desc">Feedback → validated training examples → candidate training. Preference-pair trainer landed in Phase 7.</p>
+  <ul class="steps">
+    <li class="done">User feedback (intake cascade + trust tiers + quarantine)</li>
+    <li class="done">Corrections (correction → validated example → store)</li>
+    <li class="done">Reward signals (automated-verification tier)</li>
+    <li class="done">Experience → training examples (ExperienceStore, dedup + provenance)</li>
+    <li class="done">Dataset filtering (validated-only training, no-leak replay)</li>
+    <li class="done">Preference-pair (ranking) trainer <span style="color:var(--text-dim)">(completed in Phase 7)</span></li>
+    <li class="open">Feedback-confidence reward-weight research <span style="color:var(--text-dim)">(open research)</span></li>
+  </ul>
+</section>
+
+<!-- Phase 6 -->
+<section class="phase done">
+  <div class="phase-header">
+    <h2>Phase 6 — Self-Improvement</h2>
+    <span class="phase-version">Astra 0.9.0</span>
+    <span class="badge done">Done</span>
+  </div>
+  <p class="phase-desc">Automated candidate → evaluate → accept/reject → deploy loop with human approval gates, audit trail, and auto-rollback. Exit criteria all met.</p>
+  <ul class="steps">
+    <li class="done">Automatic evaluation (GateEngine: gain / no_regress / absolute)</li>
+    <li class="done">Candidate model training (off active checkpoint)</li>
+    <li class="done">Model comparison (deterministic base-vs-candidate CE)</li>
+    <li class="done">Regression testing (no-forgetting gate)</li>
+    <li class="done">Automatic checkpoint selection (registry promote)</li>
+    <li class="done">Rollback (–rollback-drill + append-only audit trail)</li>
+    <li class="done">Demo: target −0.775 CE, regression +0.009 CE → ACCEPT → promoted 0.9.0</li>
+  </ul>
+</section>
+
+<!-- Phase 7 -->
+<section class="phase active">
+  <div class="phase-header">
+    <h2>Phase 7 — Stable</h2>
+    <span class="phase-version">Astra 1.0.0</span>
+    <span class="badge active">In progress</span>
+  </div>
+  <p class="phase-desc">First stable, integrated, gated, auditable release. Increments 1–5 done. Supervised window started with tools/continuous.py; &gt; 1 week wall-clock remains.</p>
+  <ul class="steps">
+    <li class="done">Stable model architecture (interface freeze, __all__ everywhere)</li>
+    <li class="done">Stable training pipeline (make lint / make typecheck green)</li>
+    <li class="done">Memory (memory-aware candidate training via search_memory_block)</li>
+    <li class="done">Learning pipeline (DPO preference path + memory context)</li>
+    <li class="done">Evaluation (full E2E walk + 8-test E2E suite + gates)</li>
+    <li class="done">Versioning (semver + registry promote/rollback/history)</li>
+    <li class="done">Documentation (docs-completeness gate in make release)</li>
+    <li class="done">Reproducible builds (release automation + checksums)</li>
+    <li class="done">Preference training path (DPO-style margin objective)</li>
+    <li class="done">Release checklist automation (tools/release.py check|tag, 7 gates)</li>
+    <li class="open">Long supervised window (started with tools/continuous.py; &gt; 1 week wall-clock, Astra-5M)</li>
+  </ul>
+</section>
+
+<!-- Phase 8 -->
+<section class="phase active">
+  <div class="phase-header">
+    <h2>Phase 8 — Evolution</h2>
+    <span class="phase-version">Astra 1.x</span>
+    <span class="badge active">Engineering complete</span>
+  </div>
+  <p class="phase-desc">Continuous controlled improvement with regression watch, drift detection, and rollback always available. Operator toolkit (coding phase) + durable memory compaction complete.</p>
+  <ul class="steps">
+    <li class="done">Operator tooling (continuous loop, drift watch, regression watch)</li>
+    <li class="done">Long-term metrics store (append-only, per-promotion snapshots)</li>
+    <li class="done">Drift detection (improving/stable/regressing + silent-drift flag)</li>
+    <li class="done">Human review queues (supervised: alert-and-stop on drift)</li>
+    <li class="done">Model lineage graphing (lineage() from registry superseded_by chain)</li>
+    <li class="done">Rollback automation (--auto-rollback, audited)</li>
+    <li class="open">Scheduled candidate training (continuous supervised window, &gt; 1 week)</li>
+    <li class="done">Durable memory growth (MemoryStore.compact(): prune + dedupe, audited)</li>
+    <li class="open">Larger models</li>
+    <li class="open">Better datasets</li>
+    <li class="open">Improved reasoning</li>
+    <li class="open">Better memory</li>
+    <li class="open">More efficient learning</li>
+    <li class="open">Hardware optimization</li>
+  </ul>
+</section>
+
+<!-- Phase 9 -->
+<section class="phase research">
+  <div class="phase-header">
+    <h2>Phase 9 — Advanced</h2>
+    <span class="phase-version">Astra 2.0</span>
+    <span class="badge research">Research</span>
+  </div>
+  <p class="phase-desc">Architecture research branch, validated under the same rigor.</p>
+  <ul class="steps">
+    <li class="open">Advanced reasoning</li>
+    <li class="open">Tool use</li>
+    <li class="open">Planning</li>
+    <li class="open">Multimodal research</li>
+    <li class="open">More sophisticated continual learning</li>
+    <li class="open">Distributed training/research</li>
+  </ul>
+</section>
+
+<footer>
+  Generated from <code>docs/Phases.md</code> · Astra Project · updated 2026-09-11
+</footer>
+
+</div>
+</body>
+</html>

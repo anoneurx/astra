@@ -28,22 +28,28 @@ class KVCache:
         self._v: list[np.ndarray | None] = [None] * cfg.n_layers
 
     def _ensure(self, layer: int, needed: int) -> None:
-        if self._k[layer] is not None and self._k[layer].shape[2] >= needed:
+        old_k = self._k[layer]
+        if old_k is not None and old_k.shape[2] >= needed:
             return
         B, H, dh = 1, self.cfg.n_heads, self.cfg.d_head
-        cur = self._k[layer].shape[2] if self._k[layer] is not None else max(self.cfg.max_seq_len, needed)
+        cur = old_k.shape[2] if old_k is not None else max(self.cfg.max_seq_len, needed)
         slots = max(2 * cur, needed)
         k = np.zeros((B, H, slots, dh), dtype=np.float32)
         v = np.zeros((B, H, slots, dh), dtype=np.float32)
-        if self._k[layer] is not None:
-            k[:, :, : self._k[layer].shape[2], :] = self._k[layer]
-            v[:, :, : self._v[layer].shape[2], :] = self._v[layer]
+        old_v = self._v[layer]
+        if old_k is not None and old_v is not None:
+            k[:, :, : old_k.shape[2], :] = old_k
+            v[:, :, : old_v.shape[2], :] = old_v
         self._k[layer], self._v[layer] = k, v
 
     def store(self, layer: int, k: np.ndarray, v: np.ndarray) -> None:
         self._ensure(layer, self.seen + 1)
-        self._k[layer][:, :, self.seen, :] = k[:, :, 0, :]
-        self._v[layer][:, :, self.seen, :] = v[:, :, 0, :]
+        kcache = self._k[layer]
+        assert kcache is not None
+        kcache[:, :, self.seen, :] = k[:, :, 0, :]
+        vcache = self._v[layer]
+        assert vcache is not None
+        vcache[:, :, self.seen, :] = v[:, :, 0, :]
 
 
 def _headify(x: np.ndarray, heads: int, dh: int) -> np.ndarray:
@@ -94,8 +100,11 @@ def decode_token(model: LiteLM, cache: KVCache, token: np.ndarray, window: int =
 
         cache.store(li, k, v)
         lo = max(0, cache.seen + 1 - window) if window > 0 else 0
-        K = cache._k[li][:, :, lo : cache.seen + 1, :]
-        V = cache._v[li][:, :, lo : cache.seen + 1, :]
+        kv_k = cache._k[li]
+        kv_v = cache._v[li]
+        assert kv_k is not None and kv_v is not None
+        K = kv_k[:, :, lo : cache.seen + 1, :]
+        V = kv_v[:, :, lo : cache.seen + 1, :]
         scores = (q @ K.transpose(0, 1, 3, 2)) * (cfg.d_head**-0.5)
         scores = scores - scores.max(axis=-1, keepdims=True)
         p = np.exp(scores)

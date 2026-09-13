@@ -40,6 +40,8 @@ from astra.learning.evaluate import partition_metrics
 from astra.learning.experience import ExperienceStore, make_example
 from astra.learning.feedback import make_feedback, validate_feedback
 from astra.learning.gates import GateEngine, GateItem
+from astra.memory import search_memory_block
+from astra.memory.store import MemoryStore
 from astra.model import ModelConfig
 from astra.registry import ModelRegistry
 from astra.tokenizer import ByteLevelBPE
@@ -111,6 +113,19 @@ def run_loop(args) -> dict:
         raise SystemExit(f"leak: held-out lines found in experience set: {leaked}")
 
     replay = np.array(tok.encode(Path("datasets/name/train.txt").read_text(encoding="utf-8")), dtype=np.int32)
+
+    # memory-aware conditioning: retrieved long-term facts feed the candidate
+    mem = MemoryStore.open(name="longterm", directory=args.memory_dir)
+    mem_query = " ".join(
+        str(ex.get("payload", {}).get("output") or ex.get("payload", {}).get("good") or "")
+        for ex in examples
+    ).strip() or "Astra"
+    budget = max(64, cfg.max_seq_len // 2)
+    mem_block = search_memory_block(mem, mem_query, tok, k=4, budget_tokens=budget)
+    memory_context = mem_block.text if mem_block.included else None
+    print(f"[memory] {len(mem_block.included)} record(s) condition the candidate "
+          f"({len(mem_block.tokens)} tokens)")
+
     cc = CandidateConfig(
         max_steps=args.steps,
         peak_lr=args.peak_lr,
@@ -127,6 +142,7 @@ def run_loop(args) -> dict:
         config=cc,
         out_dir=args.out_dir,
         seed=args.seed,
+        memory_context=memory_context,
     )
     print(f"[train ] {res.steps} steps, final CE {res.final_loss:.4f}, {res.checkpoint}")
 
@@ -153,6 +169,7 @@ def run_loop(args) -> dict:
         "decision": decision.to_dict(),
         "metrics": metrics,
         "experience_ids": [e["id"] for e in examples],
+        "memory_context_tokens": len(mem_block.tokens),
     }
 
     if decision.accepted:
@@ -250,6 +267,7 @@ def main() -> None:
     ap.add_argument("--base", default="checkpoints/name/resumed/final.npz")
     ap.add_argument("--out-dir", default="checkpoints/candidate")
     ap.add_argument("--store", default="learning/store")
+    ap.add_argument("--memory-dir", default="memory/store")
     ap.add_argument("--audit", default="learning/audit.jsonl")
     ap.add_argument("--registry", default="checkpoints/registry.json")
     ap.add_argument("--semver", default="0.9.0")

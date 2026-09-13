@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import platform
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -65,7 +66,7 @@ def run_repetition_fraction(model: LiteLM, n_tokens: int = 200, seed: int = 0) -
     return float(repetition_fraction(toks, n=4))
 
 
-SCORERS = {
+SCORERS: dict[str, Callable[..., float]] = {
     "val_ppl": run_val_ppl,
     "decode_tokens_per_sec": run_inference_tokens_per_sec,
     "repetition_fraction": run_repetition_fraction,

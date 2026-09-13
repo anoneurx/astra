@@ -162,3 +162,6 @@ class ExperienceStore:
             counts[key] = counts.get(key, 0) + 1
         counts["by_kind"] = self.kinds_active()
         return counts
+
+
+__all__ = ["ExperienceStore", "dedup_key", "make_example"]

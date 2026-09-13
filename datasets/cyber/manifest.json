@@ -1,0 +1,27 @@
+{
+  "dataset": "cyber-alerts",
+  "pipeline": "tools/build_cyber_corpus.py",
+  "source": "NSL-KDD (UNB CIC), peer-reviewed intrusion benchmark",
+  "source_file": "/run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/cyber/raw/KDDTrain+.txt",
+  "row_count": 125973,
+  "verified_canonical_row_count": 125973,
+  "teacher": "expert-labeled NSL-KDD records (verified ground truth)",
+  "cleaning_rules": "feature-order fixed; 41-feature telemetry; label curated against known attack set; deterministic stratified split by label+content digest",
+  "splits": {
+    "train": {
+      "path": "datasets/cyber/train.txt",
+      "sha256": "6a28f2fd2bcb21b1fc95329ca63e699c8da81403e1dc05783fa12f6824f94173",
+      "bytes": 14397467
+    },
+    "val": {
+      "path": "datasets/cyber/val.txt",
+      "sha256": "e7b520de69b83261dc8cf7a8766f1927fd5391208b4429419f5de8743de110d2",
+      "bytes": 1818666
+    },
+    "eval": {
+      "path": "datasets/cyber/eval.txt",
+      "sha256": "c5637776036c1a2d983382607a0ddda6cea1abc265c4519aa6ef772d153b65eb",
+      "bytes": 1823626
+    }
+  }
+}

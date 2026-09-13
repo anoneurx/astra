@@ -38,6 +38,7 @@ from astra.learning.evaluate import load_model, partition_metrics
 from astra.learning.experience import ExperienceStore
 from astra.learning.feedback import make_feedback, validate_feedback
 from astra.learning.gates import GateEngine, GateItem
+from astra.memory import search_memory_block
 from astra.memory.store import MemoryStore
 from astra.model import ModelConfig, all_params
 from astra.registry import ModelRegistry
@@ -147,7 +148,7 @@ def run_e2e(
     _step("inference.sample", len(sample) == 8, f"{prompt!r}-> {text!r}")
 
     # -- 5. memory: append + recall ----------------------------------
-    mem = MemoryStore(name="e2e", directory=memory_dir)
+    mem = MemoryStore.open(name="e2e", directory=memory_dir)
     rec = mem.add(content=f"E2E integration record (phase 7) for {model_name}")
     recall = mem.get_latest(rec.id)
     _step("memory.recall", recall is not None, f"rid={rec.id[:12]}")
@@ -168,7 +169,21 @@ def run_e2e(
     if leakage:
         raise PipelineError(f"held-out leakage: {leakage}")
 
-    # -- 8. candidate train off the active checkpoint -----------------
+    # -- 8. memory-aware conditioning: retrieved memories feed the candidate --
+    mem_query = " ".join(
+        str(ex.get("payload", {}).get("output")
+            or ex.get("payload", {}).get("good") or "")
+        for ex in experiences
+    ).strip() or "Astra"
+    budget = max(64, cfg.max_seq_len // 2)
+    mem_block = search_memory_block(mem, mem_query, tok, k=4, budget_tokens=budget)
+    memory_context = mem_block.text if mem_block.included else None
+    _step("memory.context", not mem_block.dropped,
+          f"{len(mem_block.included)} record(s) -> {len(mem_block.tokens)} tokens "
+          f"conditioned into candidate training")
+    fields["memory_context_tokens"] = len(mem_block.tokens)
+
+    # -- 9. candidate train off the active checkpoint -----------------
     cc = CandidateConfig(max_steps=steps, peak_lr=peak_lr,
                          warmup_steps=max(5, steps // 15), batch_seq=batch_seq,
                          replay_ratio=replay_ratio)
@@ -176,6 +191,7 @@ def run_e2e(
         base_checkpoint=base_checkpoint, tokenizer=tok, model_config=cfg,
         experiences=experiences, replay_ids=replay_ids, config=cc,
         out_dir=candidate_dir, seed=seed,
+        memory_context=memory_context,
     )
     _step("learning.candidate", True,
           f"{res.steps} steps, final CE {res.final_loss:.4f}, {res.checkpoint}")
@@ -247,6 +263,7 @@ def run_e2e(
         "promoted": bool(promoted_sha),
         "promoted_sha": promoted_sha,
         "memory_id": fields.get("memory_id"),
+        "memory_context_tokens": fields.get("memory_context_tokens"),
         "comment": "every subsystem exercised with its production module; see docs/PHASE_STATUS.md",
     }
     write_json(f"{out_dir}/e2e_report.json", report)

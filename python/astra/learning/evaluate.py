@@ -17,7 +17,8 @@ from astra.training.checkpoint import load_checkpoint
 
 def load_model(cfg: ModelConfig, ckpt: str | None) -> LiteLM:
     m = LiteLM(cfg, seed=0)
-    load_checkpoint(ckpt, m, opt=None, schedule=None)
+    if ckpt is not None:
+        load_checkpoint(ckpt, m, opt=None, schedule=None)
     return m
 
 

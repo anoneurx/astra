@@ -72,7 +72,7 @@ def git_commit() -> str:
         commit = head.stdout.strip()
         dirty = subprocess.run(
             ["git", "status", "--porcelain"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True, text=True, timeout=5, check=False,
         )
         if dirty.returncode == 0 and dirty.stdout.strip():
             return f"{commit}-dirty"

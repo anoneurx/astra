@@ -42,7 +42,7 @@ def main() -> None:
     store = ExperimentStore(root=args.root)
 
     if args.command == "list":
-        runs = store.list()
+        runs = store.list_runs()
         if not runs:
             print("(no runs recorded)")
             return

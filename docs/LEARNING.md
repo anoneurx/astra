@@ -261,14 +261,23 @@ Everything traces to the 10 `human_verification`-tier experiences in the store.
 | Supervised worker | `tools/self_improve.py` | intake → candidate → measure → gate → promote/reject → audit; `--rollback-drill` |
 | Full-stack E2E walk | `tools/e2e.py` (+ `tests/test_e2e.py`) | Phase-7 harness: tokenizer → registry(active) → model → inference → memory → learning → gates → promote/reject → audit in one gated command |
 
-### 6.3 What remains for Phase-5/6 exit / Phase 7
+### 6.3 What remains (post Phase-7 increments)
 
-- Preference-pair (ranking) training path — payload schema exists, trainer
-  currently uses only the `good` path in `kind == "preference"`.
+- ~~Preference-pair (ranking) training path~~ — **DONE in Phase 7**:
+  `astra/model/core.py::preference_backward` (DPO-style margin objective) +
+  `astra/learning/candidate.py::_train_step_preference` consume the
+  `preference` kind before replay batches; the candidate manifest reports
+  `n_preference`/`n_lm`. Verified by `test_preference_training_prefers_good_path`
+  and `test_preference_path_e2e`.
+- ~~Memory-aware candidate training~~ — **DONE in Phase 7**:
+  `astra/memory/injection.py::search_memory_block` retrieves top-k memories and
+  `tools/e2e.py`, `tools/self_improve.py`, `tools/learning_loop.py` pass the
+  `<|memory|>` block into the candidate's training context.
 - Autonomous unattended deployment — `tools/self_improve.py` is supervised
-  (explicit command); a scheduled worker belongs to Phase 7.
+  (explicit command); a scheduled worker belongs to the Phase-7 supervised
+  window over the Astra-5M horizon.
 - Alerting — promotion/rejection is reported on console + audit; out-of-band
-  notification defer to Phase 7.
+  notification defer to Phase 8.
 - Reward-weight / threshold curves and feedback-confidence research —
   documented as open research above.
 - Leak coverage for the live pipeline (`learning/store` is git-ignored like

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import os
+import signal
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -114,6 +115,7 @@ def train(
         min_lr=train_config.get("min_lr", 1e-5),
     )
     val_every = val_every or int(train_config.get("val_every", 250))
+    save_every = train_config.get("save_every")
     hist: list[float] = []
     val_hist: list[dict] = []
     step = 0
@@ -131,6 +133,35 @@ def train(
     opt_step = 0  # completed macro optimizer steps (lr index)
     micro_in_accum = 0
     model.zero_grad()
+
+    def _snapshot(tag: str) -> None:
+        save_checkpoint(
+            f"{out_dir}/{tag}-{step}.npz",
+            model,
+            opt,
+            schedule,
+            step=step,
+            loss_hist=list(hist),
+            meta={
+                "seed": seed,
+                "model_config": cfg.to_dict(),
+                "train_config": train_config,
+                "data_manifest": {"train": train_corpus.manifest, "val": val_corpus.manifest},
+                "params": model.num_params,
+                "git_commit": git_commit(),
+                "environment": environment(),
+            },
+        )
+
+    def _on_signal(signum: int, _frame: object) -> None:
+        print(f"[signal] caught {signum} at step {step}; saving checkpoint-{step}.npz",
+              flush=True)
+        _snapshot("checkpoint")
+        os._exit(128 + signum)
+
+    signal.signal(signal.SIGTERM, _on_signal)
+    signal.signal(signal.SIGINT, _on_signal)
+
     while step < max_steps:
         stream = SeqStream(train_corpus, batch_seq=bsz, seq_len=cfg.max_seq_len, rng=rng)
         for x, y in stream:
@@ -162,6 +193,8 @@ def train(
                     f"val_loss={v['loss']:.4f} ppl={v['ppl']:.2f} "
                     f"lr={schedule.lr(opt_step - 1):.2e}"
                 )
+            if save_every and step % save_every == 0:
+                _snapshot("checkpoint")  # crash-safe resume point
     # drain a trailing partial epoch so final metrics are deterministic from config
     elapsed = time.time() - start
     final = val_loss(model, val_corpus, cfg, n_shards=val_shards)

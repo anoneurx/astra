@@ -1,0 +1,9 @@
+{
+  "vocab_size": 8192,
+  "num_special": 4,
+  "min_frequency": 2,
+  "special_names": ["<pad>", "<bos>", "<eos>", "<unk>"],
+  "corpus": "datasets/cyber/train.txt",
+  "out_path": "tokenizer/artifacts/cyber_bpe.json",
+  "report_path": "experiments/phase0/tokenizer_report_cyber.md"
+}

@@ -6,8 +6,7 @@ import random
 import string
 
 import pytest
-
-from astra.tokenizer import ByteLevelBPE, PAD_ID, UNK_ID
+from astra.tokenizer import PAD_ID, UNK_ID, ByteLevelBPE
 from astra.utils import stable_seed
 
 

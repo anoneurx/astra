@@ -23,7 +23,10 @@ _WORD = re.compile(r"[a-z0-9]+")
 
 
 class Embedder(ABC):
-    dim: int
+    @property
+    @abstractmethod
+    def dim(self) -> int:
+        """Embedding dimension (rows of ``embed`` output)."""
 
     @abstractmethod
     def embed(self, texts: list[str]) -> np.ndarray:
@@ -91,8 +94,12 @@ class HashEmbedder(Embedder):
     """
 
     def __init__(self, dim: int = 64, seed: int = 1):
-        self.dim = dim
+        self._dim = dim
         self._seed = seed
+
+    @property
+    def dim(self) -> int:
+        return self._dim
 
     def embed(self, texts: list[str]) -> np.ndarray:
         vecs = []

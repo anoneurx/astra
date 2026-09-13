@@ -48,7 +48,7 @@ class ExperimentStore:
     def list_ids(self) -> list[str]:
         return sorted(p.stem for p in self.root.glob(f"{self.suffix}-*.json"))
 
-    def list(self) -> list[dict]:
+    def list_runs(self) -> list[dict]:
         return [self.get(i) for i in self.list_ids()]
 
     def query(self, **filters: Any) -> list[dict]:
@@ -59,7 +59,7 @@ class ExperimentStore:
         comparison, enabling thresholds like ``final_val.loss__lt=3.0``.
         """
         out = []
-        for rec in self.list():
+        for rec in self.list_runs():
             if all(self._match(rec, k, v) for k, v in filters.items()):
                 out.append(rec)
         return out

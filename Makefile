@@ -1,7 +1,8 @@
 PYTHON ?= python3
 THREADS ?= 8
+VERSION ?= 1.0.0
 
-.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop self-improve rollback-drill e2e
+.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop self-improve rollback-drill e2e release lint typecheck
 
 benchmark: ## run the ACTIVE core-basic gate on the registered name checkpoint
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/benchmark.py \
@@ -30,6 +31,9 @@ rollback-drill: ## offline auto-rollback drill (promote regressing artifact, res
 e2e: ## Phase-7 full-stack walk: tokenizer -> registry -> model -> inference -> memory -> learning -> gates -> promote -> audit
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/e2e.py
 
+release: ## Phase-7 release-checklist automation: full gates before tagging (docs/RELEASES.md § 2)
+	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/release.py check --version $(VERSION)
+
 registry: ## show registered artifacts + verify checksums
 	$(PYTHON) tools/registry.py list
 
@@ -39,6 +43,12 @@ serve: ## run the Python inference HTTP service on :8080
 
 rust-test: ## build + test the Rust runtime skeleton (astra-rt)
 	cd service/rust && cargo test
+
+lint: ## ruff check (fast static lint); prefers the repo .venv ruff
+	$(if $(wildcard .venv/bin/ruff),.venv/bin/ruff,ruff) check python/ tools/ tests/
+
+typecheck: ## mypy on astra (type-check); uses .venv mypy if present
+	$(if $(wildcard .venv/bin/mypy),.venv/bin/mypy,mypy) python/astra --ignore-missing-imports
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-12s %s\n", $$1, $$2}'

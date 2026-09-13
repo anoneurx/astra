@@ -22,3 +22,5 @@ TRUST_TIERS = [
 # Every feedback record that may influence training must carry:
 #   source, confidence, verification_status, timestamp, dedup_key
 # Unverifiable or low-confidence feedback is quarantined (never autotrusted).
+
+__all__ = ["TRUST_TIERS"]

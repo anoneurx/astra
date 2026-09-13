@@ -42,5 +42,5 @@ class ModelConfig:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "ModelConfig":
+    def from_dict(cls, d: dict) -> ModelConfig:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})

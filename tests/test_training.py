@@ -6,8 +6,8 @@ from itertools import pairwise
 
 import numpy as np
 import pytest
-
-from astra.model import LiteLM, ModelConfig, all_params as _ap
+from astra.model import LiteLM, ModelConfig
+from astra.model import all_params as _ap
 from astra.training import AdamW, CosineSchedule, SeqStream, loss_by_shard, tokenize_corpus, train
 from astra.training.data import Corpus
 from astra.training.optim import (
@@ -29,7 +29,7 @@ def test_cosine_schedule_monotonic_after_warmup():
 
 def test_adamw_updates_state_and_weights():
     m = LiteLM(ModelConfig(vocab_size=16, d_model=8, n_layers=1, n_heads=2, d_head=4, d_ffn=8, max_seq_len=8), seed=0)
-    before = dict((n, w.copy()) for n, w, _g in _ap(m))
+    before = {n: w.copy() for n, w, _g in _ap(m)}
     m.zero_grad()
     for _n, _w, g in _ap(m):
         g[:] = 0.5
@@ -46,7 +46,7 @@ def test_seqstream_deterministic_and_finite():
     corpus = Corpus(ids=np.arange(10_000, dtype=np.int32), manifest={})
     from astra.model.config import ModelConfig
 
-    cfg = ModelConfig(vocab_size=1000, d_model=16, n_layers=1, n_heads=2, d_head=8, d_ffn=16, max_seq_len=32)
+    ModelConfig(vocab_size=1000, d_model=16, n_layers=1, n_heads=2, d_head=8, d_ffn=16, max_seq_len=32)
     s1 = list(SeqStream(corpus, 4, 32, np.random.default_rng(0)))
     s2 = list(SeqStream(corpus, 4, 32, np.random.default_rng(0)))
     for (x1, y1), (x2, y2) in zip(s1, s2):
@@ -88,8 +88,8 @@ def test_loss_by_shard_partitions_contiguously():
 
 
 def test_val_loss_returns_shard_breakdown():
-    from astra.training import val_loss
     from astra.model.config import ModelConfig
+    from astra.training import val_loss
 
     np.random.seed(0)
     cfg = ModelConfig(vocab_size=1000, d_model=16, n_layers=1, n_heads=2, d_head=8, d_ffn=16, max_seq_len=32)

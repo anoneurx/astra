@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
-
 from astra.safety import (
     deduplicate_lines,
     fingerprint,
@@ -43,7 +40,7 @@ def test_leak_check_clean_sets():
 
 
 def test_leak_check_detects_overlap():
-    tr = list(range(0, 100))
+    tr = list(range(100))
     hd = list(range(50, 150))  # shares 4-grams like (50,51,52,53)
     r = leak_check(tr, hd, n=4)
     assert r["overlap_ngrams"] > 0

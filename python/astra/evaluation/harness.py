@@ -31,7 +31,7 @@ def evaluate_checkpoint(
     gen_len: int = 200,
 ) -> dict:
     model = LiteLM(model_cfg, seed=0)
-    step, _hist, meta = load_checkpoint(ckpt_path, model, opt=None, schedule=None)
+    step, _hist, _meta = load_checkpoint(ckpt_path, model, opt=None, schedule=None)
 
     # 1. frozen val split: loss, perplexity, next-token accuracy
     stream = SeqStream(val_corpus, batch_seq=4, seq_len=model_cfg.max_seq_len,

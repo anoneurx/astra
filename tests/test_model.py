@@ -64,7 +64,7 @@ def _double_model(model: LiteLM) -> LiteLM:
 
 
 def _numeric_grad(f64: LiteLM, ids, targets, name, idx, eps=1e-4):
-    w, _g = dict((n, (ww, gg)) for n, ww, gg in all_params(f64))[name]
+    w, _g = {n: (ww, gg) for n, ww, gg in all_params(f64)}[name]
     orig = w[idx].copy()
     w[idx] = orig + eps
     lp = f64.forward_loss(ids, targets)[1]
@@ -78,7 +78,7 @@ def _analytic_grad(model: LiteLM, ids, targets):
     model.zero_grad()
     logits, _ = model.forward_loss(ids, targets)
     model.backward(logits, targets)
-    return dict((n, (w, g)) for n, w, g in all_params(model))
+    return {n: (w, g) for n, w, g in all_params(model)}
 
 
 @pytest.mark.parametrize("seed", [0, 7])
@@ -208,7 +208,7 @@ def _set_buffers(model: LiteLM, f64: dict[str, np.ndarray]) -> None:
 
 def _numeric_grad_generic(f64: LiteLM, ids, targets, name, idx, eps=1e-4):
     """numeric grad using a float64 twin over any all_params entry."""
-    w = dict((n, w) for n, w, _g in all_params(f64))[name]
+    w = {n: w for n, w, _g in all_params(f64)}[name]
     orig = w[idx].copy()
     w[idx] = orig + eps
     lp = f64.forward_loss(ids, targets)[1]

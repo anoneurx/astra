@@ -27,6 +27,8 @@ from astra.learning.candidate import CandidateConfig, train_candidate
 from astra.learning.evaluate import partition_metrics
 from astra.learning.experience import ExperienceStore, make_example
 from astra.learning.feedback import make_feedback, validate_feedback
+from astra.memory import search_memory_block
+from astra.memory.store import MemoryStore
 from astra.model import ModelConfig
 from astra.tokenizer import ByteLevelBPE
 from astra.utils import read_json, write_json
@@ -38,6 +40,7 @@ def main() -> None:
     ap.add_argument("--base", default="checkpoints/name/resumed/final.npz")
     ap.add_argument("--out-dir", default="checkpoints/candidate")
     ap.add_argument("--store", default="learning/store")
+    ap.add_argument("--memory-dir", default="memory/store")
     ap.add_argument("--steps", type=int, default=150)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--replay-ratio", type=float, default=0.5)
@@ -90,7 +93,19 @@ def main() -> None:
     if leak:
         raise SystemExit(f"held-out eval set leaked into training: {leak}")
 
-    # --- 3. candidate training off the active checkpoint with replay
+    # --- 3. candidate training off the active checkpoint with replay, conditioned
+    #         on retrieved long-term memories (docs/MEMORY.md § 9)
+    mem = MemoryStore.open(name="longterm", directory=args.memory_dir)
+    mem_query = " ".join(
+        str(ex.get("payload", {}).get("output") or ex.get("payload", {}).get("good") or "")
+        for ex in examples
+    ).strip() or "Astra"
+    budget = max(64, cfg.max_seq_len // 2)
+    mem_block = search_memory_block(mem, mem_query, tok, k=4, budget_tokens=budget)
+    memory_context = mem_block.text if mem_block.included else None
+    print(f"[memory] {len(mem_block.included)} record(s) condition the candidate "
+          f"({len(mem_block.tokens)} tokens)")
+
     replay = np.array(tok.encode(Path("datasets/name/train.txt").read_text(encoding="utf-8")), dtype=np.int32)
     cc = CandidateConfig(
         max_steps=args.steps,
@@ -108,6 +123,7 @@ def main() -> None:
         config=cc,
         out_dir=args.out_dir,
         seed=args.seed,
+        memory_context=memory_context,
     )
     print(f"[train ] {res.steps} steps, final CE {res.final_loss:.4f}, {res.checkpoint}")
 

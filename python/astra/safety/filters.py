@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections import Counter
-from pathlib import Path
 
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 

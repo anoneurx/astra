@@ -2,9 +2,80 @@
 
 > Record of notable changes per release. Keep it accurate; detail lives in release notes and ADRs.
 
-**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), Phase-5 Learning core (Astra 0.7.0), Phase-6 Self-Improvement core (Astra 0.9.0) implemented and tested, and Phase-7 Full-Stack E2E walks (Astra 1.0.0, increment 1) delivered (`tools/e2e.py`, `tests/test_e2e.py`).
+**STATUS: VALIDATED** — Phase 0 experiments all meet their acceptance criteria (see `experiments/phase0/REPORT.md`); Phase 2 Training Foundation (Astra 0.2.0), Phase-3 core components (Astra 0.3.0), Phase-4 Memory (Astra 0.5.0), Phase-5 Learning core (Astra 0.7.0), Phase-6 Self-Improvement core (Astra 0.9.0) implemented and tested, Phase-7 Full-Stack E2E walks (Astra 1.0.0, increments 1–5) delivered (`tools/e2e.py`, `tests/test_e2e.py`, `tools/release.py`), and Phase-8 operator toolkit (Astra 1.x) coding complete (`astra/learning/evolution.py`, `tools/continuous.py`, 7 tests).
 
 ---
+
+## 1.0.0 (unreleased) — First Stable System (Phase 7)
+
+**Phase-7 integration: full-stack E2E walk, memory-aware candidate training,
+preference (DPO) path, release checklist automation, and interface freeze —
+everything but the long supervised window ships for 1.0.0
+(docs/PHASE_STATUS.md Phase-7 checklists).**
+
+- **E2E test suite expanded to 8** (`tests/test_e2e.py`): promote path,
+  reject-keeps-base, leak-abort, memory-augmented candidate, memory-correction
+  → learning-cycle feed, multi-step rollback (two promotes then two rollbacks
+  restore exactly the prior actives, audited in causal order), audit-trail
+  completeness (accept/reject/accept all verbatim in the log), and the
+  preference path (manifest `n_preference`/`n_lm`).
+- **Memory-aware candidate training**: `astra/memory/injection.py`
+  `search_memory_block` retrieves the top-k memories; `tools/e2e.py`,
+  `tools/self_improve.py`, `tools/learning_loop.py` pass the `<|memory|>`
+  block as training context; the candidate manifest records `memory_context`.
+- **Preference path** (`astra/model/core.py` `preference_backward` +
+  `astra/learning/candidate.py` `_train_step_preference`): DPO-style margin
+  objective over (good, bad) pairs, consumed before replay batches.
+- **Release automation** (`tools/release.py` + `make release`): `check`
+  runs 7 gates — full tests, E2E walk, rollback drill, memory retrieval eval,
+  registry verify, docs completeness, changelog; `tag` versions only if all
+  pass.
+- **Interface freeze**: explicit `__all__` on every public module package
+  (`astra/*/__init__.py`, `feedback.py`, `experience.py`, `registry.py`, …);
+  `make lint` (ruff) and `make typecheck` (mypy, 40 files) both green;
+  `pyproject.toml` project metadata; `tests/learning/__init__.py`.
+- **Tests**: full suite 154 green; ruff clean; mypy clean.
+- **Remaining for release**: the continuous supervised window
+  (improvement runs > 1 week with zero silent regressions) over the
+  Astra-5M horizon.
+
+## 1.x (in progress) — Continuous Evolution (Phase 8, coding phase DONE)
+
+**Phase-8 operator toolkit — controlled continuous improvement with regression
+watch, drift detection, and rollback always available.**
+
+- **MetricsStore** (`astra/learning/evolution.py`): append-only JSONL per
+  model name; one row per promotion (sha256, semver, metrics, report_id,
+  timestamp); series query + metric_names discovery.
+- **DriftDetector** (same file): classifies improving / stable / regressing /
+  needs-more-data over a trailing window; flags *silent drift* (current value
+  worse than the series best beyond a configurable drift tolerance even when
+  individual steps looked within the regression threshold).
+- **lineage()** (same file): promotion chain for a name via registry
+  `superseded_by` pointers; oldest → newest with sha256/semver/superseded_by/step;
+  used for model-lineage graphing and rollback context.
+- **Continuous operator** (`tools/continuous.py`): drives `tools/self_improve.py`
+  iterations on a schedule (`--watch`), records every promotion to MetricsStore,
+  runs DriftDetector after each iteration; alert-only by default (supervised),
+  `--auto-rollback` restores previous active + audits on drift/regression;
+  `--check` runs drift-only on existing store; `--compact-memory`
+  runs durable-memory compaction when drift is detected.
+- **Durable memory growth** (`astra/memory/store.py` `compact()`): maintenance
+  op that physically prunes soft-deleted entries and de-duplicates
+  identical-content active records (newest wins) — every removal audited as a
+  `compact` row, so the durable store grows without unbounded bloat.
+- **Operator demo** (Phase-7 supervised window started): `tools/continuous.py`
+  ran real iterations on `astra-name` (ACCEPT: −0.775 CE target, +0.009 CE
+  regression, promoted 0.9.0), existing series drift-check clean.
+- **Tokenizer fix**: `astra/tokenizer/bpe.py` `_most_frequent_pair` no longer
+  allocates a ~537M-entry dense `bincount` array once vocab ids pass 256;
+  uses structured-array `np.unique` instead (vocab-8192 training now ~14 min,
+  previously effectively stalled). Tokenizer training speed bug.
+- **Tests**: 7 green (`tests/learning/test_evolution.py`) — MetricsStore
+  roundtrip; needs-more-data / improving / stable / regressing / silent-crawl
+  drift; lineage from real registry entries — plus 2 compaction tests
+  (`tests/test_memory.py`). Full suite 163 green; lint (ruff) +
+  typecheck (mypy, 41 files) clean.
 
 ## 0.9.0 (2026-09-09) — Self-Improvement (Phase 6 core)
 
