@@ -1,34 +1,43 @@
 # Astra Chat — Terminal Guide
 
-## Start Chat (name-tuned model — knows her name is Astra)
+## Start Chat
 
 ```bash
 cd /home/kashie/Documents/Projects/astra && source .venv/bin/activate
 ```
 
 ```bash
-python3 inference/generate.py \
-  --checkpoint checkpoints/name/resumed/final.npz \
-  --config configs/toy_name.json
-```
-
-**Short version** (default args work — they point at the name-tuned model):
-
-```bash
 make generate
 ```
+
+With no arguments, `generate.py` auto-picks the best available **language model**:
+
+1. `checkpoints/astra5m_prose/resumed/final.npz` — the finished prose run (copied
+   there automatically when training hits 900 steps)
+2. the highest-step live snapshot on the training drive
+   (`astra_tmp/run_prose_chunk1/stageNN/resumed/checkpoint-*.npz`) — usable mid-run
+3. the toy name model (`checkpoints/name/`) — fallback only; it just echoes
+   memorized name-facts, which is what produced the garbled output before
+
+The prose run lands at the drive as `astra-prose.service` (self-healing runner:
+mount-guard remounts the drive, resumes from the last good checkpoint every time).
+When it finishes, `final.npz` is exported into the repo automatically.
 
 ## What You See
 
 ```
-Astra loaded (step 2600, 133440 params)
-Checkpoint: checkpoints/name/resumed/final.npz
+Astra loaded (step 100, 6032640 params)   ← 6.0M prose model, still training
+Checkpoint: astra_tmp/run_prose_chunk1/stage02/resumed/checkpoint-100.npz
 Temperature: 0.6
 
 You:
 ```
 
 Type a prompt, press Enter. Astra responds. Repeat. Type `quit`, `exit`, or `Ctrl-C` to leave.
+
+Early-training checkpoints output rough English (fragments, bad spellings) —
+expected until ~step 300+. The toy fallback (133k params) is the one that answers
+"name"-style prompts with **Astra** but garbles everything else.
 
 ## Options
 
@@ -37,36 +46,19 @@ Type a prompt, press Enter. Astra responds. Repeat. Type `quit`, `exit`, or `Ctr
 | `--temperature 0.6` | 0.6 | Lower = more deterministic, higher = more random |
 | `--max-new 64` | 64 | Max tokens generated per response |
 | `--top-k 8` | 8 | Keep only the 8 most-likely tokens per step (0 = off) |
-| `--seed 123` | 42 | Changes the randomness seed for generation |
-| `--checkpoint PATH` | `checkpoints/name/resumed/final.npz` | Load a different checkpoint |
+| `--seed 42` | 42 | Changes the randomness seed for generation |
+| `--checkpoint PATH` | auto-resolve | Load a specific checkpoint |
+| `--config PATH` | auto-resolve | Config/tokenizer for that checkpoint |
 
 ### Example with options
 
 ```bash
 python3 inference/generate.py \
-  --checkpoint checkpoints/phase0/final.npz \
-  --config configs/toy_pretrain.json \
+  --checkpoint checkpoints/astra5m_prose/resumed/final.npz \
+  --config configs/astra5m_prose.json \
   --temperature 0.8 \
   --max-new 128
 ```
-
-## What to Type
-
-The **name-tuned model** (default) was fine-tuned from phase0 on short name-focused
-sentences (`datasets/name/`). Best prompts mirror that distribution:
-
-```
-You: What is your name?
-You: My name is
-You: Her name is
-You: The assistant is called
-```
-
-It tends to answer with **Astra** on these, but the model is tiny (133k params), so
-sampled responses are short and can drift into the pretraining-corpus tail. The base
-model (`checkpoints/phase0/final.npz`) was trained on the toy engineering/scientific
-corpus, so prompts in that vocabulary work best there (`section alpha: specifications`,
-`field voltage =`, `operation op-100`) and it will not know the name Astra.
 
 ## Exit
 

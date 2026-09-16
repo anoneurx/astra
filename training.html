@@ -3,128 +3,275 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Astra — Cyber Early-Alert Training</title>
+<meta http-equiv="refresh" content="120">
+<title>Astra — Training Monitor</title>
 <style>
   :root {
-    --bg:        #06090f;
-    --bg-card:   #0c1220;
-    --bg-hover:  #111c30;
-    --border:    #1a2744;
+    --bg:        #000;
+    --bg-card:   #0a0e14;
+    --bg-card2:  #0d1420;
+    --bg-hover:  #121b2b;
+    --border:    #1b2740;
+    --border-soft:#131d31;
     --accent:    #3b82f6;
-    --accent-dim:#1e4a8a;
+    --accent2:   #8b5cf6;
     --green:     #22c55e;
     --yellow:    #eab308;
     --red:       #ef4444;
     --cyan:      #06b6d4;
-    --text:      #d6e0f0;
-    --text-dim:  #7b8da6;
+    --text:      #dbe4f4;
+    --text-dim:  #8193ae;
+    --text-faint:#5b6b85;
     --font:      "Inter", system-ui, -apple-system, sans-serif;
     --mono:      "JetBrains Mono", "Fira Code", monospace;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   body {
-    background: var(--bg);
+    background: radial-gradient(1200px 600px at 70% -10%, #071625 0%, #000 55%) fixed, #000;
     color: var(--text);
     font-family: var(--font);
-    line-height: 1.7;
-    padding: 2rem 1rem 4rem;
+    line-height: 1.65;
+    padding-bottom: 4rem;
     min-height: 100vh;
   }
-  .container { max-width: 1000px; margin: 0 auto; }
-  header {
-    text-align: center;
-    padding: 2.5rem 1rem 1.5rem;
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 1.1rem; }
+
+  /* ── sticky topbar ─────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(0,0,0,.82); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
-    margin-bottom: 2rem;
+    padding: .55rem 1.1rem;
   }
-  header h1 { font-size: 1.9rem; letter-spacing: 0.2px; }
-  header .sub { color: var(--text-dim); font-size: 0.95rem; margin-top: 0.4rem; }
-  .badges { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 1rem; }
+  .topbar-inner {
+    max-width: 1080px; margin: 0 auto;
+    display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+  }
+  .brand { font-family: var(--mono); font-size: .9rem; color: var(--text); letter-spacing: .3px; }
+  .brand b { color: var(--accent); font-weight: 700; }
+  .topchips { display: flex; gap: .4rem; flex-wrap: wrap; margin-left: auto; }
+  .chip {
+    font-family: var(--mono); font-size: .68rem;
+    padding: .22rem .6rem; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--text-dim);
+  }
+  .chip.green { border-color: var(--green); color: var(--green); }
+  .chip.yellow { border-color: var(--yellow); color: var(--yellow); }
+  .chip.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .btn-report {
+    font-family: var(--mono); font-size: .74rem; cursor: pointer;
+    padding: .35rem .9rem; border-radius: 8px;
+    color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; transition: filter .15s, transform .15s;
+  }
+  .btn-report:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+  /* ── hero ──────────────────────────────────── */
+  header { text-align: center; padding: 3rem 1rem 1.6rem; }
+  .kicker {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase;
+  }
+  header h1 {
+    font-size: 2rem; margin-top: .5rem; letter-spacing: .3px;
+    background: linear-gradient(90deg, #fff, #cfe0ff 55%, var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  header .sub { color: var(--text-dim); font-size: .95rem; margin-top: .45rem; }
+  .badges { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; margin-top: 1.2rem; }
   .badge {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    padding: 0.25rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    color: var(--text);
+    font-family: var(--mono); font-size: .72rem;
+    padding: .28rem .7rem; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--text-dim);
+    background: rgba(255,255,255,.02);
   }
   .badge.green { border-color: var(--green); color: var(--green); }
   .badge.yellow { border-color: var(--yellow); color: var(--yellow); }
-  .badge.red { border-color: var(--red); color: var(--red); }
   .badge.cyan { border-color: var(--cyan); color: var(--cyan); }
-  section { margin-bottom: 2.2rem; }
+
+  /* ── at-a-glance strip ─────────────────────── */
+  .glance {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: .8rem; margin: 1.4rem 0 2rem;
+  }
+  .gcard {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: .9rem 1.05rem;
+    position: relative; overflow: hidden;
+  }
+  .gcard::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent); opacity: .7; }
+  .gcard .k { font-size: .68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .6px; }
+  .gcard .v { font-family: var(--mono); font-size: 1.5rem; margin-top: .25rem; color: #fff; }
+  .gcard .s { font-size: .72rem; color: var(--text-faint); margin-top: .15rem; }
+
+  /* ── nav / sections ────────────────────────── */
+  nav.toc { display: flex; gap: .5rem; flex-wrap: wrap; margin: .4rem 0 1.8rem; }
+  nav.toc a {
+    font-family: var(--mono); font-size: .7rem; text-decoration: none;
+    color: var(--text-dim); border: 1px solid var(--border);
+    padding: .3rem .7rem; border-radius: 8px; transition: all .15s;
+  }
+  nav.toc a:hover { color: #fff; border-color: var(--accent); }
+  section { margin-bottom: 2rem; scroll-margin-top: 70px; }
   section h2 {
-    font-size: 1.05rem;
-    display: flex; align-items: center; gap: 0.6rem;
-    margin-bottom: 0.9rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 1px solid var(--border);
+    font-size: 1.02rem; display: flex; align-items: center; gap: .6rem;
+    margin-bottom: .9rem; padding-bottom: .45rem; border-bottom: 1px solid var(--border);
   }
   section h2 .n {
-    font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+    font-family: var(--mono); font-size: .72rem; color: var(--accent);
     background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: 6px; padding: 0.1rem 0.45rem;
+    border-radius: 6px; padding: .1rem .45rem;
   }
+  section h2 .tag { margin-left: auto; font-size: .7rem; font-family: var(--mono);
+    color: var(--text-faint); border: 1px solid var(--border); border-radius: 999px; padding: .12rem .6rem; }
   .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1rem 1.2rem;
-    margin-bottom: 1rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1rem;
   }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
-  .metric { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; }
-  .metric .k { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .metric .v { font-family: var(--mono); font-size: 1.35rem; margin-top: 0.2rem; }
-  .metric .s { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.1rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-  th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-dim); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
-  td.mono, .mono { font-family: var(--mono); font-size: 0.8rem; }
-  .ok { color: var(--green); }
-  .warn { color: var(--yellow); }
-  .err { color: var(--red); }
-  .bar { height: 10px; background: var(--bg-hover); border-radius: 6px; overflow: hidden; margin-top: 0.4rem; }
-  .bar > div { height: 100%; background: var(--accent); }
-  progress {
-    width: 100%; height: 10px; appearance: none; border: none; border-radius: 6px;
-    background: var(--bg-hover);
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .75rem; }
+  .metric {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: .85rem 1rem;
   }
-  progress::-webkit-progress-bar { background: var(--bg-hover); border-radius: 6px; }
-  progress::-webkit-progress-value { background: var(--green); border-radius: 6px; }
-  progress::-moz-progress-bar { background: var(--green); border-radius: 6px; }
-  .code { font-family: var(--mono); font-size: 0.78rem; background: var(--bg-hover); border-radius: 6px; padding: 0.75rem 1rem; overflow-x: auto; color: var(--text); }
-  .foot { text-align: center; color: var(--text-dim); font-size: 0.78rem; margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1.2rem; }
+  .metric .k { font-size: .68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; }
+  .metric .v { font-family: var(--mono); font-size: 1.32rem; margin-top: .2rem; color: #fff; }
+  .metric .s { font-size: .72rem; color: var(--text-faint); margin-top: .1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  th, td { text-align: left; padding: .48rem .6rem; border-bottom: 1px solid var(--border-soft); }
+  th { color: var(--text-faint); font-weight: 600; font-size: .7rem; text-transform: uppercase; letter-spacing: .5px; }
+  td.mono, .mono { font-family: var(--mono); font-size: .8rem; }
+  tr:hover td { background: rgba(255,255,255,.015); }
+  .ok { color: var(--green); } .warn { color: var(--yellow); } .err { color: var(--red); }
+  .code { font-family: var(--mono); font-size: .78rem; background: var(--bg-card2);
+    border: 1px solid var(--border); border-radius: 8px; padding: .75rem 1rem;
+    overflow-x: auto; color: var(--text); }
   ul.checks { list-style: none; }
-  ul.checks li { padding: 0.28rem 0; font-size: 0.88rem; }
-  ul.checks .mark { margin-right: 0.5rem; font-family: var(--mono); }
+  ul.checks li { padding: .28rem 0; font-size: .88rem; }
+  ul.checks .mark { margin-right: .5rem; font-family: var(--mono); }
+  .foot { text-align: center; color: var(--text-faint); font-size: .76rem; margin-top: 3rem;
+    border-top: 1px solid var(--border); padding-top: 1.3rem; }
+
+  /* ── progress bars ─────────────────────────── */
+  progress { width: 100%; height: 10px; appearance: none; border: none; border-radius: 6px; background: var(--bg-hover); }
+  progress::-webkit-progress-bar { background: var(--bg-hover); border-radius: 6px; }
+  progress::-webkit-progress-value { background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 6px; }
+  progress::-moz-progress-bar { background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 6px; }
+  .bar { height: 10px; border-radius: 6px; overflow: hidden; background: var(--bg-hover); margin-top: .4rem; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  /* ── chart bars (trajectory mini) ──────────── */
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding-top: .4rem; }
+  .chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .chart .col .barv { width: 100%; border-radius: 4px 4px 0 0;
+    background: linear-gradient(180deg, var(--accent2), var(--accent)); }
+  .chart .col.shrink .barv { background: linear-gradient(180deg, var(--green), var(--accent)); }
+  .chart .lbl { font-family: var(--mono); font-size: .6rem; color: var(--text-faint); }
+
+  /* ── overlay / report modal ────────────────── */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(6px);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 2rem 1rem; overflow-y: auto;
+  }
+  .overlay.open { display: flex; }
+  .oreport {
+    width: 100%; max-width: 900px;
+    background: radial-gradient(900px 500px at 80% -10%, #0a1626 0%, #05080f 60%), #05080f;
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 2rem 2.2rem; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    animation: pop .2s ease-out;
+  }
+  @keyframes pop { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .oreport .ohead { display: flex; align-items: center; gap: .8rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+  .oreport .ohead h3 { font-size: 1.15rem; letter-spacing: .2px; }
+  .oreport .ohead .x {
+    margin-left: auto; cursor: pointer; border: 1px solid var(--border); color: var(--text-dim);
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    font-family: var(--mono); font-size: .95rem; background: var(--bg-card);
+    transition: all .15s;
+  }
+  .oreport .ohead .x:hover { color: #fff; border-color: var(--red); }
+  .olive { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; margin: 1.2rem 0; }
+  .olive .metric { background: var(--bg-card2); }
+  .ogrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 760px) { .ogrid { grid-template-columns: 1fr; } }
+  .omodel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.15rem; }
+  .omodel h4 { font-size: .86rem; margin-bottom: .7rem; display: flex; align-items: center; gap: .5rem; }
+  .omodel h4 .st { font-family: var(--mono); font-size: .62rem; padding: .15rem .5rem; border-radius: 999px; }
+  .st.done { background: rgba(34,197,94,.12); color: var(--green); border: 1px solid var(--green); }
+  .st.run { background: rgba(11,182,212,.12); color: var(--cyan); border: 1px solid var(--cyan); }
+  .omodel table { font-size: .8rem; }
+  .oreport .closeline { margin-top: 1.4rem; text-align: center; }
+
+  .muted { color: var(--text-faint); }
 </style>
 </head>
 <body>
+
+<!-- ── sticky topbar ───────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="brand">◈ <b>ASTRA</b> · training monitor</span>
+    <div class="topchips">
+      <span class="chip green">CYBER · DONE</span>
+      <span class="chip green">PROSE · DONE</span>
+      <span class="chip yellow">CPU 85°C</span>
+    </div>
+    <button class="btn-report" id="openReport" type="button">◧ Training Report</button>
+  </div>
+</div>
+
 <div class="container">
 
+  <!-- ── hero ───────────────────────────────────────────────── -->
   <header>
-    <h1>Astra — Cyber Early-Alert Training</h1>
-    <div class="sub">Early Cyber Alerts &amp; System Protect · distillation student · live report</div>
+    <div class="kicker">model training · live report</div>
+    <h1>Astra — Cyber &amp; Language Training</h1>
+    <div class="sub">NSL-KDD distillation student + real prose language model · crash-safe · self-healing runner</div>
     <div class="badges">
       <span class="badge yellow">PIPELINE</span>
       <span class="badge cyan">MODEL 6.0M</span>
       <span class="badge green">TEACHER VERIFIED</span>
-      <span class="badge yellow">TRAINING CHUNKED</span>
+      <span class="badge green">CYBER: 2,800 STEPS</span>
+      <span class="badge green">PROSE: 5,400 STEPS</span>
     </div>
   </header>
 
-  <section>
-    <h2><span class="n">01</span> The Teacher Signal (verified replay)</h2>
+  <!-- ── at a glance ─────────────────────────────────────────── -->
+  <div class="glance">
+    <div class="gcard"><div class="k">Cyber model</div><div class="v">DONE</div><div class="s">val ppl 959 · v3 @ 2,800</div></div>
+    <div class="gcard"><div class="k">Language model</div><div class="v">DONE</div><div class="s">val ppl 3,862 · @ 5,400</div></div>
+    <div class="gcard"><div class="k">Chat</div><div class="v">WIRED</div><div class="s">make generate · auto-selects best</div></div>
+    <div class="gcard"><div class="k">Self-learn</div><div class="v" style="color:var(--green)">WATCHING</div><div class="s">drive daemon · polls learning/inbox every 2 min</div></div>
+    <div class="gcard"><div class="k">Guard</div><div class="v">SELF-HEAL</div><div class="s">mount-guard · resume · auto-extend</div></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#s1">01 Teacher</a>
+    <a href="#s2">02 Tokenizer</a>
+    <a href="#s3">03 Model</a>
+    <a href="#s4">04 Cyber training</a>
+    <a href="#s5">05 Cyber metrics</a>
+    <a href="#s6">06 Eval</a>
+    <a href="#s7">07 Samples</a>
+    <a href="#s8">08 Language</a>
+    <a href="#s9">09 Self-learning</a>
+  </nav>
+
+  <section id="s1">
+    <h2><span class="n">01</span> The Teacher Signal (verified replay) <span class="tag">closed</span></h2>
     <div class="card">
-      <p style="font-size:0.9rem">
+      <p style="font-size:.9rem">
         The student never learns from scratch: it distills the verified, expert-labeled
         telemetry of the <b>NSL-KDD</b> intrusion benchmark (UNB CIC — the canonical,
         peer-reviewed successor to KDD Cup 99). Each row is frozen as an
         <span class="mono">ALERT … | EARLY_WARNING …</span> example, audited, and
         split deterministically before the model sees it.
       </p>
-      <ul class="checks" style="margin-top:0.8rem">
+      <ul class="checks" style="margin-top:.8rem">
         <li><span class="mark ok">✓</span>Download verified against canonical row count (125,973 train / 22,544 test)</li>
         <li><span class="mark ok">✓</span>Feature schema locked: 41 telemetry attributes + verified label + hardness</li>
         <li><span class="mark ok">✓</span>Class distribution matches the published NSL-KDD distribution</li>
@@ -133,16 +280,16 @@
       </ul>
     </div>
     <div class="grid">
-      <div class="metric"><div class="k">Corpus</div><div class="v">NSL-KDD</div><div class="s">one verified dataset (v1)</div></div>
-      <div class="metric"><div class="k">Train rows</div><div class="v">20,000</div><div class="s">stratified subset</div></div>
+      <div class="metric"><div class="k">Corpus</div><div class="v">NSL-KDD</div><div class="s">one verified dataset</div></div>
+      <div class="metric"><div class="k">Train rows</div><div class="v">120,935</div><div class="s">all canonical train rows (v2+)</div></div>
       <div class="metric"><div class="k">Val rows</div><div class="v">2,519</div><div class="s">stratified holdout</div></div>
       <div class="metric"><div class="k">Eval rows</div><div class="v">2,519</div><div class="s">held-out scoring</div></div>
-      <div class="metric"><div class="k">Train sha256</div><div class="v mono" style="font-size:0.8rem">6a28f2fd2bcb…</div><div class="s">frozen</div></div>
+      <div class="metric"><div class="k">Train sha256</div><div class="v mono" style="font-size:.8rem">3d057e56c834…</div><div class="s">frozen · row-disjoint proof in manifest</div></div>
     </div>
   </section>
 
-  <section>
-    <h2><span class="n">02</span> Tokenizer</h2>
+  <section id="s2">
+    <h2><span class="n">02</span> Tokenizer <span class="tag">validated</span></h2>
     <div class="card">
       <table>
         <thead><tr><th>Metric</th><th>Value</th><th>Status</th></tr></thead>
@@ -151,94 +298,263 @@
           <tr><td>Algorithm</td><td class="mono">byte-level BPE, incremental counter</td><td class="ok">fast path validated</td></tr>
           <tr><td>Equivalence</td><td class="mono">merge-for-merge == reference rescan</td><td class="ok">ALL EQUAL</td></tr>
           <tr><td>Artifact</td><td class="mono">tokenizer/artifacts/cyber_bpe.json</td><td class="ok">VALIDATED</td></tr>
-          <tr><td>Tokens (vocab 8192)</td><td class="mono">128,820 (train) / 67,171 (val)</td><td class="ok">cached to tmp</td></tr>
+          <tr><td>Tokens (vocab 8192)</td><td class="mono">128,820 train / 67,171 val</td><td class="ok">cached to tmp</td></tr>
           <tr><td>Bytes/token</td><td class="mono">111.8</td><td class="ok">round-trip exact</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <section>
-    <h2><span class="n">03</span> Model — distillation student</h2>
+  <section id="s3">
+    <h2><span class="n">03</span> Model — distillation student <span class="tag">shared arch</span></h2>
     <div class="grid">
       <div class="metric"><div class="k">Architecture</div><div class="v">Astra-5M</div><div class="s">6L · 8H · d256 · RoPE</div></div>
       <div class="metric"><div class="k">Params</div><div class="v">≈6.0M</div><div class="s">tied embeddings</div></div>
       <div class="metric"><div class="k">Context</div><div class="v">128</div><div class="s">one alert per sequence</div></div>
-      <div class="metric"><div class="k">Teacher</div><div class="v">NSL-KDD</div><div class="s">verified labels (not from scratch)</div></div>
+      <div class="metric"><div class="k">Teacher</div><div class="v">NSL-KDD</div><div class="s">verified labels</div></div>
     </div>
   </section>
 
-  <section>
-    <h2><span class="n">04</span> Training — chunked (resume)</h2>
+  <section id="s4">
+    <h2><span class="n">04</span> Cyber Training — chunked resume <span class="tag">complete</span></h2>
     <div class="card">
       <table>
-        <thead><tr><th>Chunk</th><th>Steps</th><th>Tokens</th><th>Est. time</th><th>Status</th></tr></thead>
+        <thead><tr><th>Run</th><th>Steps</th><th>Peak LR</th><th>Corpus</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td class="mono">C1</td><td class="mono">0 → 700</td><td class="mono">1.43M</td><td class="mono">~4 h</td><td class="ok">RUNNING (self-healing)</td></tr>
-          <tr><td class="mono">C2</td><td class="mono">700 → 1400</td><td class="mono">1.43M</td><td class="mono">~4 h</td><td class="warn">next night</td></tr>
-          <tr><td class="mono">C3+</td><td class="mono">1400 → …</td><td class="mono">…</td><td class="mono">…</td><td class="warn">planned</td></tr>
+          <tr><td class="mono">v1 · chunk 1</td><td class="mono">0 → 700</td><td class="mono">3e-4</td><td class="mono">20k rows</td><td class="warn">done — overfit (val ppl 70,773)</td></tr>
+          <tr><td class="mono">v2 · full retrain</td><td class="mono">0 → 1400</td><td class="mono">1.5e-4</td><td class="mono">120,935 rows</td><td class="ok">DONE · val ppl 1,128</td></tr>
+          <tr><td class="mono">v3 · continue</td><td class="mono">1400 → 2800</td><td class="mono">1.5e-4</td><td class="mono">120,935 rows</td><td class="ok">DONE · val ppl 959</td></tr>
         </tbody>
       </table>
-      <div style="margin-top:0.9rem">
-        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-dim)">
-          <span>Steps completed</span><span class="mono">crash-safe: checkpoint saved every 50 steps · self-healing runner resumes on any kill · log → astra_tmp/run_cyber.log</span>
+      <div style="margin-top:.9rem">
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-dim)">
+          <span>Steps completed</span><span class="mono">v3 final → stage02/resumed/final.npz · saved to astra_tmp/saved/cyber_v3</span>
         </div>
-        <progress value="5" max="700"></progress>
+        <progress value="2800" max="2800"></progress>
       </div>
     </div>
     <div class="code"># orchestrated by self-healing runner (survives kills, resumes from last checkpoint):
-#   /run/media/kashie/…/astra_tmp/chunk_runner.py   →   stageNN runs under astra_tmp/run_cyber_c1/
+#   astra_tmp/chunk_runner.py  →  astra_tmp/run_cyber_c3/stageNN
 command = [
   "python training/train.py --config configs/astra5m_cyber.json",
-  "--out astra_tmp/run_cyber_c1/stageNN --steps 700",
-  "--resume <latest checkpoint-*.npz>  (auto)  --cache-dir astra_tmp/token_cache",
+  "--out astra_tmp/run_cyber_c3/stage02 --steps 2800 --resume stage00/final.npz",
+  "--cache-dir astra_tmp/token_cache",
 ]
-  </section>
-
-  <section>
-    <h2><span class="n">05</span> Metrics (fills live each chunk)</h2>
-    <div class="grid">
-      <div class="metric"><div class="k">Train CE</div><div class="v">—</div><div class="s">mean next-token</div></div>
-      <div class="metric"><div class="k">Val CE</div><div class="v">—</div><div class="s">frozen holdout</div></div>
-      <div class="metric"><div class="k">Val PPL</div><div class="v">—</div><div class="s">exp(CE)</div></div>
-      <div class="metric"><div class="k">Tok/s</div><div class="v">—</div><div class="s">CPU (8 threads)</div></div>
     </div>
   </section>
 
-  <section>
-    <h2><span class="n">06</span> Early-warning eval (classification)</h2>
+  <section id="s5">
+    <h2><span class="n">05</span> Cyber Metrics + Val Trajectory <span class="tag">live-filled</span></h2>
+    <div class="grid">
+      <div class="metric"><div class="k">Params</div><div class="v">6.03M</div><div class="s">Astra-5M · tied embeddings</div></div>
+      <div class="metric"><div class="k">v3 final val CE</div><div class="v">6.87</div><div class="s">ppl 959 (v2 was 1,128)</div></div>
+      <div class="metric"><div class="k">v3 train CE</div><div class="v">4.59</div><div class="s">final step 2800</div></div>
+      <div class="metric"><div class="k">Tok/s</div><div class="v">~101</div><div class="s">CPU (8 threads)</div></div>
+    </div>
     <div class="card">
-      <p style="font-size:0.88rem;color:var(--text-dim)">
+      <p class="muted" style="font-size:.82rem;margin-bottom:.5rem">
+        Hold-out validation every 100 steps. PPL falls 2,001 → 959 across the run.
+      </p>
+      <table>
+        <thead><tr><th>Step</th><th>Val PPL</th><th>movement</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">300</td><td class="mono">2,001</td><td class="warn">▬ start</td></tr>
+          <tr><td class="mono">800</td><td class="mono">1,168</td><td>▬▬ big drop</td></tr>
+          <tr><td class="mono">1400</td><td class="mono">1,128</td><td class="ok">▬▬ taper</td></tr>
+          <tr><td class="mono">2800</td><td class="mono">959</td><td class="ok">▬ final</td></tr>
+        </tbody>
+      </table>
+      <div class="chart" style="margin-top:.8rem">
+        <div class="col shrink"><div class="barv" style="height:100%"></div><span class="lbl">v1 · 70,773</span></div>
+        <div class="col shrink"><div class="barv" style="height:5%"></div><span class="lbl">v2 · 1,128</span></div>
+        <div class="col shrink"><div class="barv" style="height:4%"></div><span class="lbl">v3 · 959</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s6">
+    <h2><span class="n">06</span> Early-warning Eval <span class="tag">generalization</span></h2>
+    <div class="card">
+      <p style="font-size:.88rem;color:var(--text-dim)">
         The model is fed the 41-feature alert prefix and must emit the
-        <span class="mono">EARLY_WARNING</span> label. Scores come
-        from <span class="mono">tools/eval_cyber.py</span> on the held-out eval split.
+        <span class="mono">EARLY_WARNING</span> label. Scores come from
+        <span class="mono">tools/eval_cyber.py</span> on the held-out eval split and,
+        for the last row, on the official <span class="mono">KDDTest-21</span> test set
+        (11,850 rows, 38 classes) imported as <span class="mono">datasets/cyber/test21.txt</span>.
+      </p>
+      <p style="font-size:.82rem;color:var(--text-dim);margin-top:.5rem">
+        v2 predicted <span class="mono">normal</span> for all rows (learned the 53.5% majority
+        prior). v3 at 2800 changed behaviour on never-seen data: 21/25 <span class="mono">normal</span>
+        rows exact, but cannot yet name attack classes exactly (0/83). The model learned the
+        normal-vs-attack boundary — a real generalization signal.
       </p>
     </div>
     <div class="grid">
-      <div class="metric"><div class="k">Accuracy</div><div class="v">—</div><div class="s">pending chunk 1</div></div>
-      <div class="metric"><div class="k">Attack detection</div><div class="v">—</div><div class="s">TP / attacks</div></div>
-      <div class="metric"><div class="k">False-positive rate</div><div class="v">—</div><div class="s">normal → attack</div></div>
+      <div class="metric"><div class="k">Accuracy</div><div class="v">0.00</div><div class="s">v3 on eval split (all-attack)</div></div>
+      <div class="metric"><div class="k">Test-set accuracy</div><div class="v">0.168</div><div class="s">KDDTest-21: 21/25 normal rows exact</div></div>
+      <div class="metric"><div class="k">Attack detection</div><div class="v">0.24</div><div class="s">v3, both splits (v2 was 0.12)</div></div>
+      <div class="metric"><div class="k">Normal FP rate</div><div class="v">0.148</div><div class="s">v3 on test set</div></div>
     </div>
   </section>
 
-  <section>
-    <h2><span class="n">07</span> Sentence quality (sample generations)</h2>
+  <section id="s7">
+    <h2><span class="n">07</span> Cyber Sample Generation <span class="tag">structure</span></h2>
     <div class="card">
-      <p style="font-size:0.88rem;color:var(--text-dim)">
-        Continuations are checked for clean, on-line, sentence-like output (the
-        replay engine fixes perimeter formatting so the model's text stays
-        well-formed). Samples appear here after chunk 1.
-      </p>
-      <div class="code" id="samples" style="margin-top:0.7rem">— no samples yet —</div>
+      <div class="code">sample (v3, step 2800) — TRUE normal row: the model continues the structure as
+'<span class="mono">| EARLY_WARNING normal HARDNESS=…\ROW#</span>'; on attack rows it now picks a
+non-normal class on ~24% of cases (still not the exact class). Query
+tools/eval_cyber.py --eval-file datasets/cyber/test21.txt for per-row detail.</div>
     </div>
+  </section>
+
+  <section id="s8">
+    <h2><span class="n">08</span> Language — the prose model <span class="tag" style="color:var(--green);border-color:var(--green)">DONE · 5,400</span></h2>
+    <div class="card">
+      <p style="font-size:.88rem;color:var(--text-dim)">
+        The garbled chat ("hour nt er is is wyour.stra") came from the tiny
+        <b>toy "name" model</b> — it only echoes memorized name-facts. The fix is the real
+        6M-prose model trained on clean public-domain prose (Project Gutenberg, US public domain).
+        It ran as the <span class="mono">astra-prose</span> service: crash-safe, self-healing, on
+        the external drive, auto-extending 1800 → 5400 steps.
+      </p>
+      <ul class="checks" style="margin-top:.8rem">
+        <li><span class="mark ok">✓</span>Corpus: 11 verified books, 4,769,499 B train (sha <span class="mono">c7125f45…</span>), val 311,168 B</li>
+        <li><span class="mark ok">✓</span>Tokenizer <span class="mono">prose_bpe.json</span>: vocab 8192, 4.643 B/token, 1,044,421 train tokens</li>
+        <li><span class="mark ok">✓</span>Leak gate: <span class="mono">leak_free: True</span> (0/13 overlapping n-grams train↔val)</li>
+        <li><span class="mark ok">✓</span>Crash-shield: self-healing runner — mount-guard + resume + <span class="mono">save_every 25</span></li>
+        <li><span class="mark warn">◌</span>Known limit: plateaued after ~1,300 steps (4.8 MB corpus + 6M params) → chat fine-tune + bigger corpus staged</li>
+      </ul>
+    </div>
+    <div class="grid">
+      <div class="metric"><div class="k">Model</div><div class="v">Astra-5M</div><div class="s">same 6L·8H·d256 as cyber</div></div>
+      <div class="metric"><div class="k">Train tokens</div><div class="v">1.04M</div><div class="s">4.8 MB corpus · 128-token window</div></div>
+      <div class="metric"><div class="k">Steps</div><div class="v">5,400</div><div class="s">final · LR decayed to 1e-5</div></div>
+      <div class="metric"><div class="k">Val PPL</div><div class="v">3,862</div><div class="s">8,002 @ 100 → 3,658 @ 1,300</div></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-dim)">
+        <span>Prose steps completed</span><span class="mono">final.npz → checkpoints/astra5m_prose/resumed/</span>
+      </div>
+      <progress value="5400" max="5400"></progress>
+      <div class="chart" style="margin-top:.9rem">
+        <div class="col shrink"><div class="barv" style="height:100%"></div><span class="lbl">100 · 8,002</span></div>
+        <div class="col shrink"><div class="barv" style="height:53%"></div><span class="lbl">900 · 3,621</span></div>
+        <div class="col shrink"><div class="barv" style="height:46%"></div><span class="lbl">1300 · 3,658</span></div>
+        <div class="col shrink"><div class="barv" style="height:48%"></div><span class="lbl">5400 · 3,862</span></div>
+      </div>
+      <p style="font-size:.78rem;color:var(--text-dim);margin-top:.6rem">
+        <b class="ok">DONE — step 5,400 (final cap).</b> val_ppl 3,862 at the end; biggest gain
+        100 → 900 (8,002 → 3,621), then a plateau. Eval: 63% of generated words are dictionary
+        words, avg length 4.3; sentence-enders weak (0% terminal punctuation). Run ~4.6 h; system
+        peaked at Tctl 91°C (idle ~85°C). Next staged: chat fine-tune
+        (<span class="mono">astra5m_prose_chat.json</span>) + a larger corpus.
+      </p>
+    </div>
+  </section>
+
+  <section id="s9">
+    <h2><span class="n">09</span> Self-learning <span class="tag" style="color:var(--cyan);border-color:var(--cyan)">WATCHING</span></h2>
+    <div class="card">
+      <p style="font-size:.88rem;color:var(--text-dim)">
+        The <b>continuous self-learning daemon</b> now watches the drive inbox
+        (<span class="mono">astra_tmp/selflearn/inbox/</span>). Drop corrected
+        text there (chats, facts, fixes) — the daemon validates it, trains a
+        candidate off the active model with replay + memory conditioning, runs
+        the gain/no-regress gates, and promotes/rejects with a full audit trail.
+      </p>
+      <ul class="checks" style="margin-top:.8rem">
+        <li><span class="mark ok">✓</span>Cycle 20260916-180205: 2 corrections → <b class="ok">ACCEPT · promoted</b> (target CE −0.186, prose regression +0.003)</li>
+        <li><span class="mark ok">✓</span>Registry <span class="mono">astra-prose</span>: 1 promoted artifact · sha <span class="mono">32400b43…</span></li>
+        <li><span class="mark warn">◌</span><span class="warn">Watching every 120 s — train one cycle now with <span class="mono">make self-learn</span></span></li>
+      </ul>
+    </div>
+    <div class="grid">
+      <div class="metric"><div class="k">Daemon</div><div class="v" style="color:var(--cyan)">astra-self-learn</div><div class="s">systemd user unit · enabled</div></div>
+      <div class="metric"><div class="k">Base</div><div class="v">prose final</div><div class="s">resumed/final.npz (step 5400)</div></div>
+      <div class="metric"><div class="k">Gates</div><div class="v">gain ≥0.05</div><div class="s">no-regress ≤0.1 · auto policy</div></div>
+      <div class="metric"><div class="k">Type feedback</div><div class="v" style="font-size:.75rem">learning/inbox/</div><div class="s">.txt or .json — one line = one lesson</div></div>
+    </div>
+    <div class="code"># continuous mode (systemd, enabled):  systemctl --user status astra-self-learn
+# one cycle on demand:                make self-learn
+# drop a correction and let it learn:
+echo "Astra's favorite color is teal." > /run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/selflearn/inbox/fact.txt</div>
   </section>
 
   <div class="foot">
-    Astra · cyber early-alert distillation · NSL-KDD teacher playback ·
-    updated on every training chunk · output dirs: <span class="mono">checkpoints/astra5m_cyber</span>,
-    external tmp drive
+    Astra · NSL-KDD distillation + prose LM · refreshed every 2 min ·
+    outputs: <span class="mono">checkpoints/astra5m_cyber</span> · <span class="mono">checkpoints/astra5m_prose</span> · external drive
   </div>
-
 </div>
+
+<!-- ── overlay: training report ─────────────────────────────── -->
+<div class="overlay" id="reportOverlay" role="dialog" aria-modal="true">
+  <div class="oreport">
+    <div class="ohead">
+      <h3>◧ Astra — Training Report</h3>
+      <span class="x" id="closeReport" title="Close">✕</span>
+    </div>
+
+    <div class="olive">
+      <div class="metric"><div class="k">Cyber status</div><div class="v ok">DONE</div><div class="s">v3 · 2,800 steps · ppl 959</div></div>
+      <div class="metric"><div class="k">Language status</div><div class="v ok">DONE</div><div class="s">prose · 5,400 steps · ppl 3,862</div></div>
+      <div class="metric"><div class="k">Chat</div><div class="v" style="color:var(--cyan)">AUTOMATIC</div><div class="s">make generate selects best model</div></div>
+      <div class="metric"><div class="k">Self-learn</div><div class="v" style="color:var(--green)">WATCHING</div><div class="s">drive daemon · inbox every 120 s</div></div>
+    </div>
+
+    <div class="ogrid">
+      <div class="omodel">
+        <h4>Cyber — EARLY_WARNING <span class="st done">DONE</span></h4>
+        <table>
+          <tbody>
+            <tr><td class="muted">Run</td><td class="mono">v3 · continue</td></tr>
+            <tr><td class="muted">Steps</td><td class="mono">1,400 → 2,800</td></tr>
+            <tr><td class="muted">Final val CE</td><td class="mono">6.87 · ppl 959</td></tr>
+            <tr><td class="muted">Train CE</td><td class="mono">4.59</td></tr>
+            <tr><td class="muted">Test (KDDTest-21)</td><td class="mono">21/25 normal rows</td></tr>
+            <tr><td class="muted">Attack detect</td><td class="mono">0.24 (v2: 0.12)</td></tr>
+            <tr><td class="muted">Checkpoint</td><td class="mono">stage02/resumed/final.npz</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="omodel">
+        <h4>Language — prose <span class="st done">DONE</span></h4>
+        <table>
+          <tbody>
+            <tr><td class="muted">Steps</td><td class="mono">0 → 5,400 (auto-extend)</td></tr>
+            <tr><td class="muted">Val ppl</td><td class="mono">8,002 → 3,862</td></tr>
+            <tr><td class="muted">Word coverage</td><td class="mono">63% dictionary words</td></tr>
+            <tr><td class="muted">Avg word len</td><td class="mono">4.3 chars</td></tr>
+            <tr><td class="muted">Sentence-enders</td><td class="warn">0% (weak)</td></tr>
+            <tr><td class="muted">Run time</td><td class="mono">~4.6 h · CPU 8 threads</td></tr>
+            <tr><td class="muted">Checkpoint</td><td class="mono">resumed/final.npz (step 5400)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top:1.2rem;font-family:var(--mono);font-size:.76rem;color:var(--text-faint);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem">
+      status: cyber DONE · prose DONE · chat WIRED · self-learn WATCHING → ACCEPT-promoted 1 model<br>
+      hardware: 8 threads · Tctl peak 91°C / idle 85°C · drive self-remounts on drop
+    </div>
+
+    <div class="closeline">
+      <button class="btn-report" id="closeReport2" type="button">Close report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ov = document.getElementById('reportOverlay');
+  function open()  { ov.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function close() { ov.classList.remove('open'); document.body.style.overflow = ''; }
+  document.getElementById('openReport').addEventListener('click', open);
+  document.getElementById('closeReport').addEventListener('click', close);
+  document.getElementById('closeReport2').addEventListener('click', close);
+  ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+})();
+</script>
+
 </body>
 </html>

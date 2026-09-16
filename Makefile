@@ -25,6 +25,14 @@ learning-loop: ## run the Phase-5 candidate learning loop (validated feedback ->
 self-improve: ## run the Phase-6 supervised self-improvement loop (gate -> promote/reject -> audit)
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/self_improve.py
 
+self-learn: ## run ONE self-learning cycle off the drive daemon (feedback -> candidate -> gate -> promote)
+	OPENBLAS_NUM_THREADS=$(THREADS) REPO=$(PWD) $(PYTHON) \
+	  /run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/selflearn/selflearn_runner.py --once
+
+self-learn-daemon: ## start the continuous self-learning daemon (watch feedback forever)
+	OPENBLAS_NUM_THREADS=$(THREADS) REPO=$(PWD) $(PYTHON) \
+	  /run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/selflearn/selflearn_runner.py
+
 rollback-drill: ## offline auto-rollback drill (promote regressing artifact, restore prior sha)
 	$(PYTHON) tools/self_improve.py --rollback-drill
 
@@ -76,10 +84,8 @@ leak-check: ## cross-split n-gram contamination gate (EX-05)
 param-count: ## parameter count for the Phase 0 model
 	$(PYTHON) tools/param_count.py --config configs/toy_pretrain.json
 
-generate: ## interactive text generation (prompt Astra in terminal)
-	$(PYTHON) inference/generate.py \
-	  --checkpoint checkpoints/name/resumed/final.npz \
-	  --config configs/toy_name.json
+generate: ## interactive text generation (prompt Astra in terminal; auto-uses best language model)
+	$(PYTHON) inference/generate.py
 
 birth-test: ## run the Astra 0.1 Birth Test (full pipeline verification)
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/birth_test.py

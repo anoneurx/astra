@@ -1,0 +1,82 @@
+{
+  "checkpoint": "/run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/run_cyber_c3/stage02/resumed/final.npz",
+  "eval_file": "datasets/cyber/test21.txt",
+  "rows_scored": 125,
+  "rows_total": 160,
+  "accuracy": 0.168,
+  "attack_detection_rate": 0.2406,
+  "normal_false_positive_rate": 0.1481,
+  "class_balance": {
+    "normal": 27,
+    "attack": 133
+  },
+  "per_class_entries": {
+    "apache2": [
+      0,
+      6
+    ],
+    "back": [
+      0,
+      6
+    ],
+    "guess_passwd": [
+      0,
+      13
+    ],
+    "httptunnel": [
+      0,
+      3
+    ],
+    "ipsweep": [
+      0,
+      1
+    ],
+    "mailbomb": [
+      0,
+      4
+    ],
+    "mscan": [
+      0,
+      9
+    ],
+    "neptune": [
+      0,
+      16
+    ],
+    "normal": [
+      21,
+      25
+    ],
+    "processtable": [
+      0,
+      10
+    ],
+    "saint": [
+      0,
+      2
+    ],
+    "satan": [
+      0,
+      7
+    ],
+    "smurf": [
+      0,
+      9
+    ],
+    "snmpguess": [
+      0,
+      6
+    ],
+    "teardrop": [
+      0,
+      1
+    ],
+    "warezmaster": [
+      0,
+      7
+    ]
+  },
+  "sentence_quality": {
+    "on_line_continuations": 0
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "checkpoint": "checkpoints/astra5m_prose/resumed/final.npz",
+  "samples": 30,
+  "max_new": 64,
+  "temperature": 0.8,
+  "word_like": 0.6323024054982818,
+  "sentence_end": 0.0,
+  "avg_word_len": 4.345017182130584,
+  "decoded_words": 1455,
+  "val_ce": 8.25904907672659,
+  "val_ppl": 3862.4194890373847
+}

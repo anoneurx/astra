@@ -1,0 +1,29 @@
+{
+  "checkpoint": "/run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/run_cyber_c2/stage03/resumed/final.npz",
+  "rows_scored": 43,
+  "rows_total": 50,
+  "accuracy": 0.0,
+  "attack_detection_rate": 0.12,
+  "normal_false_positive_rate": 0.0,
+  "class_balance": {
+    "normal": 0,
+    "attack": 50
+  },
+  "per_class_entries": {
+    "smurf": [
+      0,
+      3
+    ],
+    "teardrop": [
+      0,
+      19
+    ],
+    "warezclient": [
+      0,
+      21
+    ]
+  },
+  "sentence_quality": {
+    "on_line_continuations": 0
+  }
+}

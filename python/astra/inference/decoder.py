@@ -148,6 +148,11 @@ def decode(
     for tok in seed_ids:
         logits = decode_token(model, cache, np.array([tok], dtype=np.int64), window=window)
     for _ in range(max_new):
+        if temperature <= 0.0:
+            nxt = int(np.argmax(logits[0, 0]))
+            out.append(nxt)
+            logits = decode_token(model, cache, np.array([nxt], dtype=np.int64), window=window)
+            continue
         lp = logits[0, 0] / temperature
         lp = lp - lp.max()
         p = np.exp(lp)

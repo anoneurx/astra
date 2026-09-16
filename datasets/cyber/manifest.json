@@ -3,25 +3,90 @@
   "pipeline": "tools/build_cyber_corpus.py",
   "source": "NSL-KDD (UNB CIC), peer-reviewed intrusion benchmark",
   "source_file": "/run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/cyber/raw/KDDTrain+.txt",
-  "row_count": 125973,
+  "row_count": 2519,
   "verified_canonical_row_count": 125973,
   "teacher": "expert-labeled NSL-KDD records (verified ground truth)",
   "cleaning_rules": "feature-order fixed; 41-feature telemetry; label curated against known attack set; deterministic stratified split by label+content digest",
   "splits": {
     "train": {
       "path": "datasets/cyber/train.txt",
-      "sha256": "6a28f2fd2bcb21b1fc95329ca63e699c8da81403e1dc05783fa12f6824f94173",
-      "bytes": 14397467
+      "sha256": "3d057e56c834f2ebfa76822063a90897f72fa2ad8e4283bcfba64c01b56db637",
+      "bytes": 87160632,
+      "rows": 120935
     },
     "val": {
       "path": "datasets/cyber/val.txt",
       "sha256": "e7b520de69b83261dc8cf7a8766f1927fd5391208b4429419f5de8743de110d2",
-      "bytes": 1818666
+      "bytes": 1818666,
+      "rows": 2519
     },
     "eval": {
       "path": "datasets/cyber/eval.txt",
       "sha256": "c5637776036c1a2d983382607a0ddda6cea1abc265c4519aa6ef772d153b65eb",
-      "bytes": 1823626
+      "bytes": 1823626,
+      "rows": 2519
+    }
+  },
+  "row_level_safety": {
+    "shared_row_ids_across_splits": 0,
+    "shared_alert_bodies_across_splits": 0,
+    "note": "row-level split is the unit of generalization; n=13 token-ngram overlap can still occur because ~112 bytes/token means 13 tokens span many independent rows whose patterns repeat"
+  },
+  "test_splits": {
+    "test21": {
+      "path": "datasets/cyber/test21.txt",
+      "source_file": "/run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/cyber/raw/KDDTest-21.txt",
+      "sha256": "d1a0915eb9dc355170e85d0dafa220c9d0b094295ced5667392665cf22c74372",
+      "bytes": 8545632,
+      "rows": 11850,
+      "classes": {
+        "guess_passwd": 1231,
+        "snmpguess": 331,
+        "processtable": 685,
+        "normal": 2152,
+        "nmap": 73,
+        "back": 359,
+        "neptune": 1579,
+        "satan": 727,
+        "saint": 309,
+        "mscan": 996,
+        "apache2": 737,
+        "httptunnel": 133,
+        "warezmaster": 944,
+        "ipsweep": 141,
+        "smurf": 627,
+        "mailbomb": 293,
+        "teardrop": 12,
+        "portsweep": 156,
+        "snmpgetattack": 178,
+        "multihop": 18,
+        "worm": 2,
+        "land": 7,
+        "sendmail": 14,
+        "buffer_overflow": 20,
+        "pod": 41,
+        "rootkit": 13,
+        "xlock": 9,
+        "xterm": 13,
+        "xsnoop": 4,
+        "ps": 15,
+        "named": 17,
+        "ftp_write": 3,
+        "loadmodule": 2,
+        "phf": 2,
+        "udpstorm": 2,
+        "perl": 2,
+        "sqlattack": 2,
+        "imap": 1
+      },
+      "row_level_safety": {
+        "shared_alert_bodies_with_splits": {
+          "train": 0,
+          "val": 0,
+          "eval": 0
+        },
+        "note": "held-out NSL-KDD test partition; distinct population from train by construction"
+      }
     }
   }
 }

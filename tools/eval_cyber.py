@@ -36,6 +36,8 @@ def main() -> None:
     ap.add_argument("--config", required=True)
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--eval-file", default="datasets/cyber/eval.txt",
+                    help="corpus file to score against (e.g. datasets/cyber/test21.txt)")
     ap.add_argument("--max-new", type=int, default=16, help="tokens to generate for label")
     ap.add_argument("--samples", type=int, default=2000, help="eval rows to score")
     ap.add_argument("--temperature", type=float, default=0.0)
@@ -43,13 +45,13 @@ def main() -> None:
     args = ap.parse_args()
 
     raw = read_json(args.config)
-    tok = ByteLevelBPE.load(args.tokenizer)
+    tok = ByteLevelBPE.load(raw["tokenizer"])
     cfg = ModelConfig.from_dict(raw["model"])
     cfg.vocab_size = len(tok)
 
     model = load_model(cfg, args.checkpoint)
 
-    eval_path = Path("datasets/cyber/eval.txt")
+    eval_path = Path(args.eval_file)
     lines = eval_path.read_text(encoding="utf-8").splitlines()
     lines = [l for l in lines if l.strip()][: args.samples]
 
@@ -98,6 +100,7 @@ def main() -> None:
 
     report = {
         "checkpoint": args.checkpoint,
+        "eval_file": str(eval_path),
         "rows_scored": scored,
         "rows_total": len(lines),
         "accuracy": round(acc, 4),

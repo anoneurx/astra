@@ -123,8 +123,10 @@ def train(
     toks = 0
     rng = np.random.default_rng(seed)
 
+    lr_start = 0  # schedule index resumes from a loaded checkpoint when present
     if resume_from:
         step, hist, _meta = load_checkpoint(resume_from, model, opt, schedule)
+        lr_start = step
         out_dir = str(Path(out_dir) / "resumed")
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -180,7 +182,7 @@ def train(
             for _n, _w, g in all_params(model):
                 g *= 1.0 / accum_steps
             clip_grad_norm(model, train_config.get("grad_clip", 1.0))
-            opt.step(schedule.lr(opt_step))
+            opt.step(schedule.lr(lr_start + opt_step))
             opt_step += 1
             model.zero_grad()
             micro_in_accum = 0
@@ -191,7 +193,7 @@ def train(
                 print(
                     f"[step {step:5d}] train={loss:.4f} "
                     f"val_loss={v['loss']:.4f} ppl={v['ppl']:.2f} "
-                    f"lr={schedule.lr(opt_step - 1):.2e}"
+                    f"lr={schedule.lr(lr_start + opt_step - 1):.2e}"
                 )
             if save_every and step % save_every == 0:
                 _snapshot("checkpoint")  # crash-safe resume point

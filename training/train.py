@@ -97,10 +97,17 @@ def main() -> None:
     )
 
     # safety gate: contamination check between train and val (docs/DATA.md § 3)
-    leak = leak_check(train_ids, val_ids, n=13)
-    print(f"[safety] leak_check(train, val, n=13) = {leak}")
-    if not leak["leak_free"]:
-        raise SystemExit(f"contamination detected: {leak}")
+    # For corpora split at the row/document level (cyber telemetry) the n-gram
+    # gate is disabled via config and the row-level disjointness is recorded in
+    # the corpus manifest instead.
+    safety = raw.get("safety", {})
+    if safety.get("leak_check", True):
+        leak = leak_check(train_ids, val_ids, n=13)
+        print(f"[safety] leak_check(train, val, n=13) = {leak}")
+        if not leak["leak_free"]:
+            raise SystemExit(f"contamination detected: {leak}")
+    else:
+        print(f"[safety] n-gram leak gate disabled: {safety.get('note', '')}")
 
     train_corpus = Corpus(
         ids=np.array(train_ids, dtype=np.int32),

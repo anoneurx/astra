@@ -47,29 +47,36 @@ def _update_counts(
 
     Only pair indices whose left or right element was replaced are touched:
     {p-1, p, p+1} around each old merged position and {q-1, q} around each
-    output position; duplicates are set-deduped so counts never drift.
+    output position. The changed positions are handled in NumPy (O(touched))
+    and merged back into the dict only for the unique pairs involved, so the
+    Python work per merge is O(unique changed pairs), not O(occurrences).
     """
+    KEY_SHIFT = 20
+    KEY_MASK = (1 << KEY_SHIFT) - 1
+
     n_old = int(old_ids.size)
-    removed: set[int] = set()
-    for p in old_pos:
-        removed.update((p - 1, p, p + 1))
-    for idx in removed:
-        if 0 <= idx < n_old - 1:
-            key = (int(old_ids[idx]), int(old_ids[idx + 1]))
-            c = counts.get(key, 0) - 1
-            if c > 0:
-                counts[key] = c
+    idx = np.unique(np.concatenate([old_pos - 1, old_pos, old_pos + 1]))
+    idx = idx[(idx >= 0) & (idx < n_old - 1)]
+    if idx.size:
+        keys = (old_ids[idx].astype(np.int64) << KEY_SHIFT) | old_ids[idx + 1]
+        ukeys, uc = np.unique(keys, return_counts=True)
+        for k, c in zip(map(int, ukeys), map(int, uc)):
+            key = (k >> KEY_SHIFT, k & KEY_MASK)
+            left = counts.get(key, 0) - c
+            if left > 0:
+                counts[key] = left
             else:
                 counts.pop(key, None)
 
     n_new = int(out_ids.size)
-    added: set[int] = set()
-    for q in out_pos:
-        added.update((q - 1, q))
-    for idx in added:
-        if 0 <= idx < n_new - 1:
-            key = (int(out_ids[idx]), int(out_ids[idx + 1]))
-            counts[key] = counts.get(key, 0) + 1
+    idx = np.unique(np.concatenate([out_pos - 1, out_pos]))
+    idx = idx[(idx >= 0) & (idx < n_new - 1)]
+    if idx.size:
+        keys = (out_ids[idx].astype(np.int64) << KEY_SHIFT) | out_ids[idx + 1]
+        ukeys, uc = np.unique(keys, return_counts=True)
+        for k, c in zip(map(int, ukeys), map(int, uc)):
+            key = (k >> KEY_SHIFT, k & KEY_MASK)
+            counts[key] = counts.get(key, 0) + c
 
 
 @dataclass
@@ -161,26 +168,26 @@ class ByteLevelBPE:
     def _apply_merge(
         ids: np.ndarray, a: int, b: int, new_id: int
     ) -> tuple[np.ndarray, np.ndarray, int]:
-        """Merge non-overlapping (a,b) occurrences; return (out, pos_of_new, n)."""
+        """Merge non-overlapping (a,b) occurrences; return (out, pos_of_new, n).
+
+        Vectorized: the merged array is what `ids` is with the trailing ``b`` of
+        every matched pair removed and the ``a`` of each pair rewritten to the
+        new token id. Matches are non-overlapping (see ``_merge_positions``), so
+        the output position of a match is ``p - k`` where ``k`` matches precede
+        it (each previous match removes exactly one element before ``p``). This
+        produces byte-for-byte the same output as the reference per-element
+        implementation but keeps each merge O(N) in NumPy rather than a Python
+        loop.
+        """
         pos = _merge_positions(ids, a, b)
         n = pos.size
         if n == 0:
             return ids, np.empty(0, dtype=np.int64), 0
-        out = np.empty(int(ids.size - pos.size), dtype=np.int64)
-        new_positions = np.empty(int(pos.size), dtype=np.int64)
-        cursor = 0
-        write = 0
-        for k, p in enumerate(map(int, pos)):
-            seg = ids[cursor : p + 1]  # include the 'a'
-            out[write : write + seg.size - 1] = seg[:-1]
-            write += seg.size - 1
-            out[write] = new_id
-            new_positions[k] = write
-            write += 1
-            cursor = p + 2
-        seg = ids[cursor:]
-        out[write : write + seg.size] = seg
-        return out, new_positions, int(pos.size)
+        remove = pos + 1
+        out = np.delete(ids, remove)
+        shifted = pos - np.arange(n, dtype=np.int64)  # each prior match removed 1 elt
+        out[shifted] = new_id
+        return out, shifted, int(n)
 
     # ----- encoding / decoding -----
 
