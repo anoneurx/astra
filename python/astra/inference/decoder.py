@@ -134,12 +134,18 @@ def decode(
     top_p: float = 1.0,
     window: int = 0,
     cache: KVCache | None = None,
+    rep_penalty: float = 0.0,
 ) -> list[int]:
     """Sample ``max_new`` tokens after ``seed_ids`` using decode_token.
 
     Returns the generated tokens (without the seed). ``top_k`` (0 = off) and
     ``top_p`` (1.0 = off) are applied together with temperature before the
     final multinomial draw. Reuse ``cache`` across calls to continue a dialog.
+
+    ``rep_penalty`` (>0) applies a classic repetition penalty: logits for every
+    token already seen in the context (seed + generated) are divided by the
+    factor before sampling, which suppresses the ``Astra: Astra: Astra:`` loops
+    small LMs fall into. 0.0 = off.
     """
     rng = rng or np.random.default_rng(0)
     cache = cache or KVCache(model.cfg)
@@ -147,13 +153,17 @@ def decode(
     out: list[int] = []
     for tok in seed_ids:
         logits = decode_token(model, cache, np.array([tok], dtype=np.int64), window=window)
+    seen = np.bincount(np.asarray(seed_ids, dtype=np.int64), minlength=v).astype(np.float64)
     for _ in range(max_new):
         if temperature <= 0.0:
             nxt = int(np.argmax(logits[0, 0]))
             out.append(nxt)
+            seen[nxt] += 1.0
             logits = decode_token(model, cache, np.array([nxt], dtype=np.int64), window=window)
             continue
         lp = logits[0, 0] / temperature
+        if rep_penalty > 0.0:
+            lp = np.where(seen > 0, lp / rep_penalty, lp)
         lp = lp - lp.max()
         p = np.exp(lp)
         p = p / p.sum()
@@ -172,5 +182,6 @@ def decode(
             p = p / p.sum()
         nxt = int(rng.choice(v, p=p))
         out.append(nxt)
+        seen[nxt] += 1.0
         logits = decode_token(model, cache, np.array([nxt], dtype=np.int64), window=window)
     return out

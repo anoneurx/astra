@@ -17,13 +17,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 import numpy as np
 from astra.model import LiteLM, ModelConfig
 from astra.safety import leak_check
-from astra.tokenizer import ByteLevelBPE
+from astra.tokenizer import ByteLevelBPE, WordLevel, load_tokenizer
 from astra.training import Corpus, train
 from astra.utils import read_json, sha256_file
 
 
 def _encoded_ids(
-    tok: ByteLevelBPE,
+    tok: ByteLevelBPE | WordLevel,
     text: str,
     tok_path: str,
     split: str,
@@ -59,6 +59,8 @@ def main() -> None:
     ap.add_argument("--out", default=None, help="override out_dir")
     ap.add_argument("--experiments", default=None, help="override experiment_store dir")
     ap.add_argument("--resume", default=None, help="resume from checkpoint .npz")
+    ap.add_argument("--reset-step", action="store_true",
+                    help="warm-start from checkpoint but restart step/LR/optimizer at 0 (fine-tuning)")
     ap.add_argument("--cache-dir", default=None, help="tokenized-corpus cache (external tmp)")
     args = ap.parse_args()
 
@@ -72,7 +74,7 @@ def main() -> None:
     if args.experiments:
         tr = {**tr, "experiment_store": args.experiments}
 
-    tok = ByteLevelBPE.load(raw["tokenizer"])
+    tok = load_tokenizer(raw["tokenizer"])
     cfg.vocab_size = len(tok)
     cfg = ModelConfig.from_dict(cfg.to_dict())  # re-validate after vocab change
 
@@ -130,6 +132,7 @@ def main() -> None:
         seed=seed,
         out_dir=out_dir,
         resume_from=args.resume,
+        reset_step=args.reset_step,
     )
     print("[final val]", json.dumps(report.final_val, indent=2))
     print(f"run manifest -> {out_dir}/report.json")

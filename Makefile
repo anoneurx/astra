@@ -2,7 +2,7 @@ PYTHON ?= python3
 THREADS ?= 8
 VERSION ?= 1.0.0
 
-.PHONY: test check tokenizer train eval leak param-count generate birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop self-improve rollback-drill e2e release lint typecheck
+.PHONY: test check tokenizer train eval leak param-count generate chat birth-test experiments decontaminate registry serve rust-test benchmark memory-eval memory-qa rust-mem learning-loop self-improve rollback-drill e2e release lint typecheck word-tokenizer word-prose word-chat word-train
 
 benchmark: ## run the ACTIVE core-basic gate on the registered name checkpoint
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/benchmark.py \
@@ -86,6 +86,24 @@ param-count: ## parameter count for the Phase 0 model
 
 generate: ## interactive text generation (prompt Astra in terminal; auto-uses best language model)
 	$(PYTHON) inference/generate.py
+
+chat: ## interactive chat using the prose-chat fine-tune (Astra speaks native English in dialogue form)
+	$(PYTHON) inference/generate.py --chat
+
+word-tokenizer: ## build the 16k word-level tokenizer over prose + chat corpora (native-English fix)
+	$(PYTHON) tools/build_word_tokenizer.py
+
+word-prose: ## train the word-level English base (8.1M, datasets/prose) via the drive chunk runner
+	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) \
+	  /run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/chunk_runner_word_prose.py
+
+word-chat: ## fine-tune the word-level model on the distilled chat corpus (drive chunk runner)
+	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) \
+	  /run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/astra_tmp/chunk_runner_word_chat.py
+
+word-train: ## train BOTH word-level stages end-to-end: prose base then chat fine-tune
+	$(MAKE) word-prose
+	$(MAKE) word-chat
 
 birth-test: ## run the Astra 0.1 Birth Test (full pipeline verification)
 	OPENBLAS_NUM_THREADS=$(THREADS) $(PYTHON) tools/birth_test.py

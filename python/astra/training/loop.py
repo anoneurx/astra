@@ -89,6 +89,7 @@ def train(
     seed: int = 0,
     out_dir: str = "checkpoints/phase0",
     resume_from: str | None = None,
+    reset_step: bool = False,
     val_every: int | None = None,
     experiment_store: str | None = None,
 ) -> TrainReport:
@@ -125,7 +126,7 @@ def train(
 
     lr_start = 0  # schedule index resumes from a loaded checkpoint when present
     if resume_from:
-        step, hist, _meta = load_checkpoint(resume_from, model, opt, schedule)
+        step, hist, _meta = load_checkpoint(resume_from, model, opt, schedule, reset_step=reset_step)
         lr_start = step
         out_dir = str(Path(out_dir) / "resumed")
 

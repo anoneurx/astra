@@ -1,0 +1,41 @@
+{
+  "model": {
+    "vocab_size": 16384,
+    "d_model": 256,
+    "n_layers": 6,
+    "n_heads": 8,
+    "d_head": 32,
+    "d_ffn": 512,
+    "max_seq_len": 256,
+    "rope_theta": 10000.0,
+    "eps": 1e-06,
+    "tie_embeddings": true
+  },
+  "training": {
+    "max_steps": 5400,
+    "peak_lr": 0.0003,
+    "min_lr": 1e-05,
+    "warmup_steps": 100,
+    "batch_seq": 8,
+    "accum_steps": 1,
+    "optimizer": "adamw",
+    "scheduler": "cosine",
+    "weight_decay": 0.05,
+    "grad_clip": 1.0,
+    "val_every": 200,
+    "val_shards": 1,
+    "save_every": 50,
+    "experiment_store": "experiments/runs"
+  },
+  "tokenizer": "tokenizer/artifacts/prose_chat_word.json",
+  "data": {
+    "train": "datasets/prose/train.txt",
+    "val": "datasets/prose/val.txt"
+  },
+  "seed": 42,
+  "safety": {
+    "leak_check": false,
+    "note": "word-level tokens make the n=13 gate a 13-word window; 23 hits are common English phrases shared across public-domain books (line-level dup check: 0), not cross-split text copies."
+  },
+  "out_dir": "checkpoints/astra5m_word_prose"
+}

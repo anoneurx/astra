@@ -46,8 +46,19 @@ def save_checkpoint(
     return sha256_file(path)
 
 
-def load_checkpoint(path: str, model: LiteLM, opt: AdamW | None, schedule: CosineSchedule | None):
-    """Restore weights; returns (step, loss_hist, manifest)."""
+def load_checkpoint(
+    path: str,
+    model: LiteLM,
+    opt: AdamW | None,
+    schedule: CosineSchedule | None,
+    reset_step: bool = False,
+):
+    """Restore weights; returns (step, loss_hist, manifest).
+
+    With ``reset_step=True`` only the weights are loaded and the step, optimizer
+    state, and LR schedule start fresh -- the mode used by fine-tuning, where we
+    warm-start from a finished checkpoint but train a new schedule from step 0.
+    """
     data = np.load(path)
     for name, w, _g in all_params(model):
         w[:] = data[f"w:{name}"]
@@ -59,7 +70,9 @@ def load_checkpoint(path: str, model: LiteLM, opt: AdamW | None, schedule: Cosin
         m = json.loads(Path(mpath).read_text())
         step, loss_hist = m["step"], m["loss_hist"]
         meta = m
-        if opt is not None:
+        if reset_step:
+            step, loss_hist = 0, []
+        elif opt is not None:
             opt.t = m["opt_t"]
             for key in ("m", "v"):
                 for name in list(getattr(opt, key)):

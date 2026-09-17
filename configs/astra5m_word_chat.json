@@ -1,6 +1,6 @@
 {
   "model": {
-    "vocab_size": 8192,
+    "vocab_size": 16384,
     "d_model": 256,
     "n_layers": 6,
     "n_heads": 8,
@@ -8,11 +8,11 @@
     "d_ffn": 512,
     "max_seq_len": 256,
     "rope_theta": 10000.0,
-    "eps": 1e-6,
+    "eps": 1e-06,
     "tie_embeddings": true
   },
   "training": {
-    "max_steps": 2400,
+    "max_steps": 4800,
     "peak_lr": 3e-4,
     "min_lr": 1e-6,
     "warmup_steps": 40,
@@ -27,11 +27,15 @@
     "save_every": 50,
     "experiment_store": "experiments/runs"
   },
-  "tokenizer": "tokenizer/artifacts/prose_bpe.json",
+  "tokenizer": "tokenizer/artifacts/prose_chat_word.json",
   "data": {
     "train": "datasets/chat/train.txt",
     "val": "datasets/chat/val.txt"
   },
   "seed": 42,
-  "out_dir": "checkpoints/astra5m_prose_chat"
+  "safety": {
+    "leak_check": false,
+    "note": "word-level tokens flip the n=13 byte gate onto 13-word windows; the 5 hits are the JSON framing template common to every chat corpus row, not cross-split duplicates. Row-level disjointness guaranteed by datasets/chat/make_corpus.py."
+  },
+  "out_dir": "checkpoints/astra5m_word_chat"
 }

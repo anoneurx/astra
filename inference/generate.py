@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 import numpy as np
 from astra.inference import KVCache, decode
 from astra.model import LiteLM, ModelConfig
-from astra.tokenizer import ByteLevelBPE
+from astra.tokenizer import load_tokenizer
 from astra.training.checkpoint import load_checkpoint
 from astra.utils import read_json
 
@@ -39,6 +39,10 @@ TOY_CKPT = "checkpoints/name/resumed/final.npz"
 TOY_CFG = "configs/toy_name.json"
 PROSE_CFG = "configs/astra5m_prose.json"
 LOCAL_FINAL = "checkpoints/astra5m_prose/resumed/final.npz"
+CHAT_FINAL = "checkpoints/astra5m_prose_chat/resumed/final.npz"
+CHAT_CFG = "configs/astra5m_prose_chat.json"
+WORD_CHAT_FINAL = "checkpoints/astra5m_word_chat/resumed/final.npz"
+WORD_CHAT_CFG = "configs/astra5m_word_chat.json"
 RUN_BASE = "astra_tmp/run_prose_chunk1"
 SELFLEARN_REGISTRY = ("/run/media/kashie/8cace107-39d5-4713-ac43-f0499e1dd2c0/"
                       "astra_tmp/selflearn/registry/registry.json")
@@ -82,6 +86,21 @@ def auto_resolve() -> tuple[str, str]:
     return str(ckpt), str(cfg)
 
 
+def chat_resolve() -> tuple[str, str]:
+    """Return (checkpoint, config) for the best chat model if available.
+
+    Priority: word-level chat fine-tune (cleanest output) > byte-level chat
+    fine-tune > best language base model.
+    """
+    word = Path(WORD_CHAT_FINAL)
+    if word.exists() and word.stat().st_size > 0:
+        return str(word), WORD_CHAT_CFG
+    chat = Path(CHAT_FINAL)
+    if chat.exists() and chat.stat().st_size > 0:
+        return str(chat), CHAT_CFG
+    return auto_resolve()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Interactive Astra text generation")
     ap.add_argument("--checkpoint", default=None)
@@ -90,6 +109,11 @@ def main() -> None:
     ap.add_argument("--max-new", type=int, default=64)
     ap.add_argument("--top-k", type=int, default=8)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--rep-penalty", type=float, default=1.15,
+                    help="repetition penalty (>1 = suppress repeats in sampled output; 0 = off)")
+    ap.add_argument("--chat", action="store_true",
+                    help="chat mode: wrap prompts in the You/Astra turn format "
+                         "and prefer the chat fine-tune checkpoint")
     ap.add_argument("--memory", default=None, help="memory store to recall from per turn")
     ap.add_argument("--memory-embedder", default="hash", choices=["hash", "litelm"])
     ap.add_argument("--memory-budget-tokens", type=int, default=192)
@@ -97,12 +121,12 @@ def main() -> None:
     args = ap.parse_args()
 
     if not args.checkpoint:
-        args.checkpoint, args.config = auto_resolve()
+        args.checkpoint, args.config = chat_resolve() if args.chat else auto_resolve()
         if args.checkpoint == TOY_CKPT:
             print(_missing_warn)
 
     raw = read_json(args.config)
-    tok = ByteLevelBPE.load(raw["tokenizer"])
+    tok = load_tokenizer(raw["tokenizer"])
     cfg = ModelConfig.from_dict({**raw["model"], "vocab_size": len(tok)})
 
     model = LiteLM(cfg, seed=0)
@@ -132,10 +156,7 @@ def main() -> None:
             print("Goodbye.")
             break
 
-        seed_ids = tok.encode(prompt)
-        if len(seed_ids) < 1:
-            continue
-
+        text = prompt
         if memory:
             hits = memory.search(query=prompt, k=args.memory_k,
                                  budget_tokens=args.memory_budget_tokens, tokenizer=tok)
@@ -143,9 +164,14 @@ def main() -> None:
             if block.included:
                 print(f"  [memory] {len(block.included)} recalled: "
                       + ", ".join(h.record.id for h in block.included))
-            seed_ids = tok.encode(block.prepend(prompt))
-            if len(seed_ids) < 1:
-                continue
+                text = block.prepend(prompt)
+        if args.chat:
+            # Chat format seen at training time: "You: <ask>\nAstra:" then the
+            # decoder continues with Astra's reply.
+            text = f"You: {text}\nAstra:"
+        seed_ids = tok.encode(text)
+        if len(seed_ids) < 1:
+            continue
 
         cache = KVCache(model.cfg)
         gen_ids = decode(
@@ -154,6 +180,7 @@ def main() -> None:
             rng=rng,
             top_k=args.top_k,
             cache=cache,
+            rep_penalty=args.rep_penalty,
         )
         try:
             response = tok.decode(gen_ids)
