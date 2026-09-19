@@ -54,7 +54,13 @@ def build_rope_tables(head_dim: int, max_seq: int, theta: float, device) -> tupl
 
 
 class TorchLiteLM(torch.nn.Module):
-    """torch.nn mirror of astra.model.core.LiteLM with the same param names."""
+    """torch.nn mirror of astra.model.core.LiteLM with the same param names.
+
+    Params are stored in a flat ``self._params`` dict keyed by the dotted
+    names used by the checkpoint format (``w:attn0.qkv`` etc). They are plain
+    leaf ``nn.Parameter`` tensors (not registered module attributes — PyTorch
+    forbids ``.`` in registered names), so autograd fills ``.grad`` normally.
+    """
 
     def __init__(self, cfg: ModelConfig, seed: int = 0, device: torch.device | None = None):
         super().__init__()
@@ -62,29 +68,31 @@ class TorchLiteLM(torch.nn.Module):
         gen = torch.Generator().manual_seed(seed)
         self.cfg = cfg
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._params: dict[str, torch.nn.Parameter] = {}
 
         wte = torch.empty(cfg.vocab_size, cfg.d_model, dtype=torch.float32)
         torch.nn.init.normal_(wte, 0.0, 0.02, generator=gen)
-        self.wte = torch.nn.Parameter(wte)
+        self._params["wte"] = torch.nn.Parameter(wte)
 
         if cfg.pos_type == "learned":
             pe = torch.empty(cfg.max_seq_len, cfg.d_model, dtype=torch.float32)
             torch.nn.init.normal_(pe, 0.0, 0.02, generator=gen)
-            self.pos_emb = torch.nn.Parameter(pe)
+            self._params["pos_emb"] = torch.nn.Parameter(pe)
 
         self.cos, self.sin = build_rope_tables(cfg.d_head, cfg.max_seq_len, cfg.rope_theta, self.device)
 
         for li in range(cfg.n_layers):
-            setattr(self, f"attn{li}.qkv", torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, 3 * cfg.d_model, li, gen)))
-            setattr(self, f"attn{li}.out", torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, cfg.d_model, li, gen)))
-            setattr(self, f"attn{li}.ln1", torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32)))
+            self._params[f"attn{li}.qkv"] = torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, 3 * cfg.d_model, li, gen))
+            self._params[f"attn{li}.out"] = torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, cfg.d_model, li, gen))
+            self._params[f"attn{li}.ln1"] = torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32))
+            self._params[f"ffn{li}.wg"] = torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, cfg.d_ffn, li, gen))
             if cfg.ffn_type == "swiglu":
-                setattr(self, f"ffn{li}.wu", torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, cfg.d_ffn, li, gen)))
-            setattr(self, f"ffn{li}.wg", torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, cfg.d_ffn, li, gen)))
-            setattr(self, f"ffn{li}.wd", torch.nn.Parameter(self._init_linear(cfg, cfg.d_ffn, cfg.d_model, li, gen)))
-            setattr(self, f"ffn{li}.ln2", torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32)))
-        self.ln_f = torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32))
-        self.to(self.device)
+                self._params[f"ffn{li}.wu"] = torch.nn.Parameter(self._init_linear(cfg, cfg.d_model, cfg.d_ffn, li, gen))
+            self._params[f"ffn{li}.wd"] = torch.nn.Parameter(self._init_linear(cfg, cfg.d_ffn, cfg.d_model, li, gen))
+            self._params[f"ffn{li}.ln2"] = torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32))
+        self._params["ln_f"] = torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32))
+        for name in self._params:
+            self._params[name] = torch.nn.Parameter(self._params[name].to(self.device))
 
     def _init_linear(self, cfg: ModelConfig, in_f: int, out_f: int, layer_idx: int, gen) -> torch.Tensor:
         limit = math.sqrt(6.0 / (in_f + out_f))
@@ -94,21 +102,7 @@ class TorchLiteLM(torch.nn.Module):
         return w * (scale / limit)
 
     def named_params(self) -> list[tuple[str, torch.Tensor]]:
-        out: list[tuple[str, torch.Tensor]] = [("wte", self.wte)]
-        if self.cfg.pos_type == "learned":
-            out.append(("pos_emb", self.pos_emb))
-        for i in range(self.cfg.n_layers):
-            q, k, v = "qkv", "out", "ln1"
-            out.append((f"attn{i}.{q}", getattr(self, f"attn{i}.{q}")))
-            out.append((f"attn{i}.{k}", getattr(self, f"attn{i}.{k}")))
-            out.append((f"attn{i}.{v}", getattr(self, f"attn{i}.{v}")))
-            if self.cfg.ffn_type == "swiglu":
-                out.append((f"ffn{i}.wu", getattr(self, f"ffn{i}.wu")))
-            out.append((f"ffn{i}.wg", getattr(self, f"ffn{i}.wg")))
-            out.append((f"ffn{i}.wd", getattr(self, f"ffn{i}.wd")))
-            out.append((f"ffn{i}.ln2", getattr(self, f"ffn{i}.ln2")))
-        out.append(("ln_f", self.ln_f))
-        return out
+        return list(self._params.items())
 
     def _rms(self, x: torch.Tensor, g: torch.Tensor) -> torch.Tensor:
         mean_sq = torch.mean(x * x, dim=-1, keepdim=True)
@@ -122,11 +116,14 @@ class TorchLiteLM(torch.nn.Module):
     def forward(self, ids: torch.Tensor):
         cfg = self.cfg
         B, T = ids.shape
-        x = self.wte[ids]
+        P = self._params
+        x = P["wte"][ids]
+        if cfg.pos_type == "learned":
+            x = x + P["pos_emb"][:T]
         cos, sin = self.cos[:T], self.sin[:T]
         for i in range(cfg.n_layers):
-            h = self._rms(x, getattr(self, f"attn{i}.ln1"))
-            qkv = h @ getattr(self, f"attn{i}.qkv")
+            h = self._rms(x, P[f"attn{i}.ln1"])
+            qkv = h @ P[f"attn{i}.qkv"]
             q, k, v = torch.split(qkv, cfg.d_model, dim=-1)
             q = q.reshape(B, T, cfg.n_heads, cfg.d_head).transpose(1, 2)
             k = k.reshape(B, T, cfg.n_heads, cfg.d_head).transpose(1, 2)
@@ -138,20 +135,20 @@ class TorchLiteLM(torch.nn.Module):
             att = torch.softmax(scores, dim=-1)
             z = att @ v
             z = z.transpose(1, 2).reshape(B, T, cfg.d_model)
-            x = x + (z @ getattr(self, f"attn{i}.out"))
+            x = x + (z @ P[f"attn{i}.out"])
 
-            h = self._rms(x, getattr(self, f"ffn{i}.ln2"))
+            h = self._rms(x, P[f"ffn{i}.ln2"])
             if cfg.ffn_type == "swiglu":
-                gate = h @ getattr(self, f"ffn{i}.wg")
-                up = h @ getattr(self, f"ffn{i}.wu")
+                gate = h @ P[f"ffn{i}.wg"]
+                up = h @ P[f"ffn{i}.wu"]
                 ff_in = torch.nn.functional.silu(gate) * up
             else:
-                ff_in = torch.nn.functional.gelu(h @ getattr(self, f"ffn{i}.wg"))
-            x = x + (ff_in @ getattr(self, f"ffn{i}.wd"))
+                ff_in = torch.nn.functional.gelu(h @ P[f"ffn{i}.wg"])
+            x = x + (ff_in @ P[f"ffn{i}.wd"])
         self._final_act = x
-        ln_out = self._rms(x, self.ln_f)
+        ln_out = self._rms(x, P["ln_f"])
         self._ln_out = ln_out
-        logits = ln_out @ self.wte.T
+        logits = ln_out @ P["wte"].T
         return logits
 
     def forward_loss(self, ids: torch.Tensor, targets: torch.Tensor):
