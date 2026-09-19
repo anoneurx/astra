@@ -141,6 +141,8 @@ class WordLevel:
     # ----- persistence -----
 
     def save(self, path: str | Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "class": "WordLevel",
             "vocab_size": self.vocab_size,
