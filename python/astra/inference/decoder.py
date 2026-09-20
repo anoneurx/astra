@@ -135,6 +135,7 @@ def decode(
     window: int = 0,
     cache: KVCache | None = None,
     rep_penalty: float = 0.0,
+    forbidden: set[int] | None = None,
 ) -> list[int]:
     """Sample ``max_new`` tokens after ``seed_ids`` using decode_token.
 
@@ -146,10 +147,15 @@ def decode(
     token already seen in the context (seed + generated) are divided by the
     factor before sampling, which suppresses the ``Astra: Astra: Astra:`` loops
     small LMs fall into. 0.0 = off.
+
+    ``forbidden`` (set of token ids) are masked out of the distribution before
+    any draw, so special tokens (``<pad>``/``<bos>``/``<eos>``/``<unk>``) can
+    never pollute generated text.
     """
     rng = rng or np.random.default_rng(0)
     cache = cache or KVCache(model.cfg)
     v = model.cfg.vocab_size
+    forbidden = forbidden or set()
     out: list[int] = []
     for tok in seed_ids:
         logits = decode_token(model, cache, np.array([tok], dtype=np.int64), window=window)
@@ -157,6 +163,14 @@ def decode(
     for _ in range(max_new):
         if temperature <= 0.0:
             nxt = int(np.argmax(logits[0, 0]))
+            if nxt not in forbidden:
+                out.append(nxt)
+                seen[nxt] += 1.0
+                logits = decode_token(model, cache, np.array([nxt], dtype=np.int64), window=window)
+                continue
+            lp = np.full(v, -np.inf, dtype=np.float64)
+            lp[~seen.astype(bool)] = logits[0, 0][~seen.astype(bool)]
+            nxt = int(np.argmax(lp))
             out.append(nxt)
             seen[nxt] += 1.0
             logits = decode_token(model, cache, np.array([nxt], dtype=np.int64), window=window)
@@ -167,6 +181,11 @@ def decode(
         lp = lp - lp.max()
         p = np.exp(lp)
         p = p / p.sum()
+        if forbidden:
+            keep = np.ones(v, dtype=bool)
+            keep[list(forbidden)] = False
+            p = np.where(keep, p, 0.0)
+            p = p / p.sum()
         if top_k > 0:
             k = min(top_k, v)
             keep = np.zeros(v, dtype=bool)

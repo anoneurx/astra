@@ -38,7 +38,8 @@ from astra.utils import read_json
 TOY_CKPT = "checkpoints/name/resumed/final.npz"
 TOY_CFG = "configs/toy_name.json"
 PROSE_CFG = "configs/astra5m_prose.json"
-LOCAL_FINAL = "checkpoints/astra5m_prose/resumed/final.npz"
+LOCAL_FINAL = "checkpoints/astra5m_word_prose/resumed/final.npz"
+LOCAL_CFG = "configs/astra5m_word_prose.json"
 CHAT_FINAL = "checkpoints/astra5m_prose_chat/resumed/final.npz"
 CHAT_CFG = "configs/astra5m_prose_chat.json"
 WORD_CHAT_FINAL = "checkpoints/astra5m_word_chat/resumed/final.npz"
@@ -55,7 +56,12 @@ _missing_warn = ("[warn] no trained language model yet — fell back to the toy 
 def auto_resolve() -> tuple[str, str]:
     """Return (checkpoint, config) for the best available language model."""
     choices: list[tuple[int, Path, Path]] = []
-    # 1st choice: a self-learned model promoted by the drive-side daemon.
+    # 1st choice: the finished word-level prose model (cleanest, native-English
+    # output; supersedes the byte-level BPE models below).
+    local = Path(LOCAL_FINAL)
+    if local.exists() and local.stat().st_size > 0:
+        choices.append((10**10 + 2, local, Path(LOCAL_CFG)))
+    # 2nd choice: a self-learned model promoted by the drive-side daemon.
     sl_reg = Path(SELFLEARN_REGISTRY)
     if sl_reg.exists():
         try:
@@ -68,9 +74,6 @@ def auto_resolve() -> tuple[str, str]:
                     choices.append((10**10 + 1, sl_ckpt, Path(PROSE_CFG)))
         except (OSError, KeyError, TypeError, ValueError):
             pass
-    local = Path(LOCAL_FINAL)
-    if local.exists() and local.stat().st_size > 0:
-        choices.append((10**9, local, Path(PROSE_CFG)))
     for m in _glob.glob(str(Path(RUN_BASE) / "stage*" / "resumed" / "checkpoint-*.npz")):
         if Path(m).stat().st_size == 0:
             continue
@@ -181,6 +184,7 @@ def main() -> None:
             top_k=args.top_k,
             cache=cache,
             rep_penalty=args.rep_penalty,
+            forbidden=set(range(tok.num_special)),
         )
         try:
             response = tok.decode(gen_ids)
