@@ -2,15 +2,16 @@
 """Classify a downloaded astra checkpoint: word-prose vs word-chat (or unknown).
 
 The .npz from Colab/Kaggle carries only w:/m:/v: arrays (the manifest is a
-separate sidecar). This compares the checkpoint against the known word-prose
-bases and reports a verdict:
+separate sidecar). This compares the checkpoint against known word-prose and
+word-chat bases and reports a verdict:
 
     what  ./tools/classify_checkpoint.py /path/to/final.npz
 
 Verdict rules (median mean-abs-diff over 44 shared weight keys):
-  <0.02        -> same training family as a known prose run
-  0.02..0.35   -> chat fine-tune (or unrelated weights)
-  else         -> not a word-model checkpoint
+  <0.02 to chat-gpu   -> chat fine-tune (3800 steps)
+  <0.02 to prose-*    -> prose base (5400 steps)
+  0.02..0.35          -> different model (chat vs prose confusion)
+  else                -> not comparable to known checkpoints
 """
 
 from __future__ import annotations
@@ -56,8 +57,9 @@ def main() -> None:
     print(f"w-keys: {n_w} (word model = 44)")
 
     refs = {
-        "gpu-prose": REPO / "checkpoints/astra5m_word_prose_gpu/resumed/final.npz",
-        "cpu-prose": REPO / "checkpoints/astra5m_word_prose/resumed/final.npz",
+        "prose-gpu": REPO / "checkpoints/astra5m_word_prose_gpu/resumed/final.npz",
+        "prose-cpu": REPO / "checkpoints/astra5m_word_prose/resumed/final.npz",
+        "chat-gpu": REPO / "checkpoints/astra5m_word_chat/resumed/final.npz",
     }
     results = {}
     for name, path in refs.items():
@@ -69,13 +71,19 @@ def main() -> None:
     if n_w != 44:
         print("VERDICT: not a word-level model checkpoint (wrong key count)")
         return
-    best = min(results.values()) if results else float("inf")
-    if best < 0.02:
-        verdict = "prose base (5400 steps) - same family as a known prose run"
-    elif best < 0.35:
-        verdict = "CHAT fine-tune?? (3800 steps) - differs substantially from prose"
+    if results:
+        best_name, best = min(results.items(), key=lambda kv: kv[1])
+        if best < 0.02:
+            if best_name.startswith("chat"):
+                verdict = "CHAT fine-tune (3800 steps) - matches the known chat model"
+            else:
+                verdict = "prose base (5400 steps) - matches a known prose run"
+        elif best < 0.35:
+            verdict = "different from all known references (chat vs prose?)"
+        else:
+            verdict = "unknown - not comparable to the known checkpoints"
     else:
-        verdict = "unknown - not comparable to the known prose bases"
+        verdict = "no reference checkpoints available"
     print(f"VERDICT: {verdict}")
 
 
