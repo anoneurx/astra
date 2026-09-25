@@ -62,12 +62,13 @@ class TorchLiteLM(torch.nn.Module):
     forbids ``.`` in registered names), so autograd fills ``.grad`` normally.
     """
 
-    def __init__(self, cfg: ModelConfig, seed: int = 0, device: torch.device | None = None):
+    def __init__(self, cfg: ModelConfig, seed: int = 0, device: torch.device | None = None, dtype: torch.dtype = torch.float32):
         super().__init__()
         torch.manual_seed(seed)
         gen = torch.Generator().manual_seed(seed)
         self.cfg = cfg
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model_dtype = dtype
         self._params: dict[str, torch.nn.Parameter] = {}
 
         wte = torch.empty(cfg.vocab_size, cfg.d_model, dtype=torch.float32)
@@ -92,7 +93,10 @@ class TorchLiteLM(torch.nn.Module):
             self._params[f"ffn{li}.ln2"] = torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32))
         self._params["ln_f"] = torch.nn.Parameter(torch.ones(cfg.d_model, dtype=torch.float32))
         for name in self._params:
-            self._params[name] = torch.nn.Parameter(self._params[name].to(self.device))
+            p_tensor = self._params[name].to(self.device)
+            if dtype != torch.float32 and not name.endswith((".ln1", ".ln2", "ln_f")):
+                p_tensor = p_tensor.to(dtype)
+            self._params[name] = torch.nn.Parameter(p_tensor)
 
     def _init_linear(self, cfg: ModelConfig, in_f: int, out_f: int, layer_idx: int, gen) -> torch.Tensor:
         limit = math.sqrt(6.0 / (in_f + out_f))
@@ -275,11 +279,13 @@ def val_loss(model: TorchLiteLM, corpus: Corpus, cfg: ModelConfig, device) -> di
     model.eval()
     stream = SeqStream(corpus, batch_seq=4, seq_len=cfg.max_seq_len, rng=np.random.default_rng(0))
     total, n = 0.0, 0
+    amp_dtype = torch.float16 if model.model_dtype == torch.float16 else (torch.bfloat16 if model.model_dtype == torch.bfloat16 else torch.float32)
     with torch.no_grad():
         for x, y in stream:
             xt = torch.from_numpy(np.asarray(x)).long().to(device)
             yt = torch.from_numpy(np.asarray(y)).long().to(device)
-            _logits, loss = model.forward_loss(xt, yt)
+            with torch.amp.autocast(device_type="cuda" if device.type == "cuda" else "cpu", dtype=amp_dtype, enabled=(model.model_dtype != torch.float32)):
+                _logits, loss = model.forward_loss(xt, yt)
             total += float(loss) * x.shape[0]
             n += x.shape[0]
     model.train()
@@ -313,6 +319,7 @@ def main() -> None:
     ap.add_argument("--reset-step", action="store_true")
     ap.add_argument("--cache-dir", default=None)
     ap.add_argument("--device", default=None)
+    ap.add_argument("--dtype", default="fp32", choices=["fp32", "fp16", "bf16"])
     args = ap.parse_args()
 
     raw = json.loads(Path(args.config).read_text())
@@ -347,7 +354,13 @@ def main() -> None:
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     print(f"[torch] device={device} cuda_cores={torch.cuda.get_device_name(0) if device.type == 'cuda' else 'n/a'}")
 
-    model = TorchLiteLM(cfg, seed=seed, device=device)
+    pt_dtype = torch.float32
+    if args.dtype == "fp16":
+        pt_dtype = torch.float16
+    elif args.dtype == "bf16":
+        pt_dtype = torch.bfloat16
+
+    model = TorchLiteLM(cfg, seed=seed, device=device, dtype=pt_dtype)
 
     opt = AdamW(model, lr=tr.get("peak_lr", 3e-4), weight_decay=tr.get("weight_decay", 0.1))
     bsz = tr.get("batch_seq", 8)
@@ -381,6 +394,7 @@ def main() -> None:
             meta={"seed": seed, "model_config": cfg.to_dict(), "train_config": tr, "params": model.num_params},
         )
 
+    amp_dtype = torch.float16 if model.model_dtype == torch.float16 else (torch.bfloat16 if model.model_dtype == torch.bfloat16 else torch.float32)
     while step < max_steps:
         stream = SeqStream(train_corpus, batch_seq=bsz, seq_len=cfg.max_seq_len, rng=rng)
         for x, y in stream:
@@ -388,7 +402,8 @@ def main() -> None:
                 break
             xt = torch.from_numpy(np.asarray(x)).long().to(device)
             yt = torch.from_numpy(np.asarray(y)).long().to(device)
-            loss = model.forward_loss(xt, yt)[1]
+            with torch.amp.autocast(device_type="cuda" if device.type == "cuda" else "cpu", dtype=amp_dtype, enabled=(model.model_dtype != torch.float32)):
+                loss = model.forward_loss(xt, yt)[1]
             loss.backward()
             hist.append(float(loss))
             step += 1

@@ -33,7 +33,7 @@ def candidates() -> list[Path]:
     if not DOWNLOADS.is_dir():
         return []
     return sorted(
-        (p for p in DOWNLOADS.rglob("final.npz") if p.is_file()),
+        (p for p in DOWNLOADS.rglob("*.npz") if p.is_file() and "final" in p.name),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -51,10 +51,11 @@ def target_for(path: Path) -> tuple[str, Path]:
     cfg = m.get("model_config", {})
     n_layers = cfg.get("n_layers", 0)
     max_steps = (m.get("train_config") or {}).get("max_steps", 0)
-    if n_layers == 6 and max_steps >= 5000:
-        return "word_prose", TARGETS["word_prose"] / "final.npz"
-    if n_layers == 6 and max_steps >= 3000:
+    name = path.name
+    if "word_chat" in name or (n_layers == 6 and max_steps >= 3000):
         return "word_chat", TARGETS["word_chat"] / "final.npz"
+    if "word_prose" in name or (n_layers == 6 and max_steps >= 5000):
+        return "word_prose", TARGETS["word_prose"] / "final.npz"
     return "", TARGETS["word_prose"] / "unknown.npz"
 
 

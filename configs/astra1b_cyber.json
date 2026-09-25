@@ -1,0 +1,43 @@
+{
+  "model": {
+    "vocab_size": 8192,
+    "d_model": 2048,
+    "n_layers": 24,
+    "n_heads": 32,
+    "d_head": 64,
+    "d_ffn": 8192,
+    "max_seq_len": 512,
+    "rope_theta": 10000.0,
+    "eps": 1e-6,
+    "tie_embeddings": true,
+    "pos_type": "rope",
+    "ffn_type": "swiglu"
+  },
+  "training": {
+    "max_steps": 20000,
+    "peak_lr": 6e-5,
+    "min_lr": 1e-6,
+    "warmup_steps": 1000,
+    "batch_seq": 16,
+    "accum_steps": 4,
+    "optimizer": "adamw",
+    "scheduler": "cosine",
+    "weight_decay": 0.1,
+    "grad_clip": 1.0,
+    "val_every": 500,
+    "save_every": 1000,
+    "val_shards": 1,
+    "experiment_store": "experiments/runs"
+  },
+  "tokenizer": "tokenizer/artifacts/cyber_bpe.json",
+  "data": {
+    "train": "datasets/cyber/train.txt",
+    "val": "datasets/cyber/val.txt"
+  },
+  "seed": 42,
+  "out_dir": "checkpoints/astra1b_cyber",
+  "safety": {
+    "leak_check": false,
+    "note": "1.2B param model on cyber corpus optimized for H100 80GB VRAM."
+  }
+}
