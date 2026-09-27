@@ -235,6 +235,18 @@ class CosineSchedule:
 
 # ------------------------------------------------------------ checkpoints
 
+def _to_numpy(t: torch.Tensor) -> np.ndarray:
+    """numpy has no bfloat16, so `Tensor.numpy()` raises
+    `TypeError: Got unsupported ScalarType BFloat16` on a bf16 run - which means the save
+    after step 0 is the first thing that touches the weights, and a bf16 training run dies
+    at the first checkpoint having completed no useful work.
+
+    Cast to float32 instead. That is the right direction: the module docstring promises the
+    .npz loads unchanged in the NumPy inference path, and NumPy has no bfloat16 to load, so
+    storing float32 is what makes that promise true rather than merely aspirational."""
+    return t.detach().to(torch.float32).cpu().numpy()
+
+
 def save_checkpoint_torch(
     path: str,
     model: TorchLiteLM,
@@ -246,10 +258,10 @@ def save_checkpoint_torch(
 ) -> None:
     payload: dict[str, np.ndarray] = {}
     for name, p in model.named_params():
-        payload[f"w:{name}"] = p.detach().cpu().numpy()
+        payload[f"w:{name}"] = _to_numpy(p)
     if opt is not None:
         for key, arr in opt.state_dict().items():
-            payload[key] = arr.cpu().numpy()
+            payload[key] = _to_numpy(arr)
     np.savez_compressed(path, **payload)
     mpath = str(path).rsplit(".npz", 1)[0] + ".manifest.json"
     write_json(mpath, {**meta, "step": step, "opt_t": opt.t if opt is not None else 0, "loss_hist": loss_hist})
@@ -286,7 +298,7 @@ def val_loss(model: TorchLiteLM, corpus: Corpus, cfg: ModelConfig, device) -> di
             yt = torch.from_numpy(np.asarray(y)).long().to(device)
             with torch.amp.autocast(device_type="cuda" if device.type == "cuda" else "cpu", dtype=amp_dtype, enabled=(model.model_dtype != torch.float32)):
                 _logits, loss = model.forward_loss(xt, yt)
-            total += float(loss) * x.shape[0]
+            total += float(loss.detach()) * x.shape[0]
             n += x.shape[0]
     model.train()
     mean = total / max(1, n)
@@ -405,7 +417,7 @@ def main() -> None:
             with torch.amp.autocast(device_type="cuda" if device.type == "cuda" else "cpu", dtype=amp_dtype, enabled=(model.model_dtype != torch.float32)):
                 loss = model.forward_loss(xt, yt)[1]
             loss.backward()
-            hist.append(float(loss))
+            hist.append(float(loss.detach()))
             step += 1
             micro_in_accum += 1
             if micro_in_accum < accum_steps:
@@ -428,7 +440,7 @@ def main() -> None:
                 v = val_loss(model, val_corpus, cfg, device)
                 v["step"] = step
                 val_hist.append(v)
-                print(f"[step {step:5d}] train={float(loss):.4f} "
+                print(f"[step {step:5d}] train={float(loss.detach()):.4f} "
                       f"val_loss={v['loss']:.4f} ppl={v['ppl']:.2f} lr={schedule.lr(lr_start + opt_step - 1):.2e}", flush=True)
             if save_every and step % save_every == 0:
                 _snapshot("checkpoint")
