@@ -1,0 +1,162 @@
+{
+  "category_counts": {
+    "Authentication": 34,
+    "Early-warning sequences": 20,
+    "False positives": 93,
+    "Multi-signal correlation": 70,
+    "Network": 72,
+    "Normal behavior": 19,
+    "Process behavior": 49,
+    "Suspicious behavior": 182,
+    "Vulnerability / code security": 23
+  },
+  "category_plan_at_this_size": {
+    "Authentication": 28,
+    "Early-warning sequences": 112,
+    "False positives": 56,
+    "Multi-signal correlation": 56,
+    "Network": 28,
+    "Normal behavior": 113,
+    "Process behavior": 28,
+    "Suspicious behavior": 113,
+    "Vulnerability / code security": 28
+  },
+  "classification_counts": {
+    "malicious": 116,
+    "normal": 70,
+    "suspicious": 376
+  },
+  "generated_by": "salvage_v1.py",
+  "leak_check": {
+    "enabled_in_config": false,
+    "reason": "leak_check(train, val, n=13) compares raw token n-grams, and every block repeats the You:/Astra: framing. It measures the template, not contamination. Row-level disjointness is proven above."
+  },
+  "name": "astra_v2_salvaged_from_v1",
+  "preflight": {
+    "block_tokens": 256,
+    "chat_block_tokens": {
+      "count": 533,
+      "max": 380,
+      "min": 113,
+      "over_256": 170,
+      "p50": 238,
+      "p90": 298,
+      "p95": 321,
+      "p99": 356
+    },
+    "leak_report": {
+      "heldout_ngrams": 1499,
+      "leak_free": false,
+      "n": 13,
+      "overlap_fraction": 0.2181454302868579,
+      "overlap_ngrams": 327,
+      "train_ngrams": 111564
+    },
+    "tokenizer": "tokenizer/artifacts/prose_chat_word.json",
+    "tokenizer_vocab_size": 16384
+  },
+  "records": 562,
+  "records_in": 1002,
+  "rejected": {
+    "action_too_short": 11,
+    "analysis_too_long": 26,
+    "duplicate_input": 11,
+    "input_too_long": 185,
+    "input_too_short": 207
+  },
+  "repaired": {
+    "confidence_capped": 120,
+    "early_warning_realigned": 58,
+    "multiline_input_flattened": 264,
+    "risk_uppercased": 1002
+  },
+  "risk_counts": {
+    "CRITICAL": 72,
+    "HIGH": 139,
+    "INFO": 70,
+    "LOW": 40,
+    "MEDIUM": 241
+  },
+  "row_level_safety": {
+    "train|eval": 0,
+    "train|val": 0,
+    "val|eval": 0
+  },
+  "seed": 20051,
+  "source": "/home/kashie/Documents/Projects/Project Astra/distillation/astra_v1_distillation.jsonl",
+  "splits": {
+    "alerts": {
+      "eval": {
+        "bytes": 6509,
+        "classification_distribution": {
+          "malicious": 4,
+          "normal": 2,
+          "suspicious": 17
+        },
+        "path": "datasets/distillation_v2/alerts/eval.txt",
+        "rows": 23,
+        "sha256": "2e9954cc93854576442b172d0d05e1af1ca1201aad132c088554c43689d99ed3"
+      },
+      "train": {
+        "bytes": 161518,
+        "classification_distribution": {
+          "malicious": 111,
+          "normal": 66,
+          "suspicious": 356
+        },
+        "path": "datasets/distillation_v2/alerts/train.txt",
+        "rows": 533,
+        "sha256": "39b0eaf4c1c95fcb8c75c59cc1be5effe22cf6b892343464888dc94e000f5aea"
+      },
+      "val": {
+        "bytes": 2064,
+        "classification_distribution": {
+          "malicious": 1,
+          "normal": 2,
+          "suspicious": 3
+        },
+        "path": "datasets/distillation_v2/alerts/val.txt",
+        "rows": 6,
+        "sha256": "00f19eca4ffd53c5d3d6651469b0a4badc5a0eb0d562e11b8b112afac45bbb17"
+      }
+    },
+    "chat": {
+      "eval": {
+        "bytes": 17004,
+        "classification_distribution": {
+          "malicious": 4,
+          "normal": 2,
+          "suspicious": 17
+        },
+        "path": "datasets/distillation_v2/chat/eval.txt",
+        "rows": 23,
+        "sha256": "861862297f68bca082534045c3b7a5ed818c0e87aa748ff9074f3ab65c809524"
+      },
+      "train": {
+        "bytes": 410533,
+        "classification_distribution": {
+          "malicious": 111,
+          "normal": 66,
+          "suspicious": 356
+        },
+        "path": "datasets/distillation_v2/chat/train.txt",
+        "rows": 533,
+        "sha256": "a886284a59b34ca8fd53f16b354553256b06bf57f28bea3e8e4599519b03ed7f"
+      },
+      "val": {
+        "bytes": 4664,
+        "classification_distribution": {
+          "malicious": 1,
+          "normal": 2,
+          "suspicious": 3
+        },
+        "path": "datasets/distillation_v2/chat/val.txt",
+        "rows": 6,
+        "sha256": "4a68bba050443b42094c89fb8e4028de21f4070d969d754ab4b528fdf52c6b85"
+      }
+    }
+  },
+  "unexpected_fields": {
+    "action": 3
+  }
+}

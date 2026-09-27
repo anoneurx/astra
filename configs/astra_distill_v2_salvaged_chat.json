@@ -1,0 +1,41 @@
+{
+  "model": {
+    "vocab_size": 16384,
+    "d_model": 256,
+    "n_layers": 6,
+    "n_heads": 8,
+    "d_head": 32,
+    "d_ffn": 512,
+    "max_seq_len": 256,
+    "rope_theta": 10000.0,
+    "eps": 1e-06,
+    "tie_embeddings": true
+  },
+  "training": {
+    "max_steps": 3800,
+    "peak_lr": 0.0003,
+    "min_lr": 1e-06,
+    "warmup_steps": 40,
+    "batch_seq": 8,
+    "accum_steps": 1,
+    "optimizer": "adamw",
+    "scheduler": "cosine",
+    "weight_decay": 0.05,
+    "grad_clip": 1.0,
+    "val_every": 200,
+    "val_shards": 1,
+    "save_every": 50,
+    "experiment_store": "experiments/runs"
+  },
+  "tokenizer": "tokenizer/artifacts/prose_chat_word.json",
+  "data": {
+    "train": "datasets/distillation_v2/chat/train.txt",
+    "val": "datasets/distillation_v2/chat/val.txt"
+  },
+  "seed": 42,
+  "safety": {
+    "leak_check": false,
+    "note": "leak_check(train, val, n=13) compares raw token n-grams, and every block repeats the You:/Astra: framing. It measures the template, not contamination. Row-level disjointness is proven above."
+  },
+  "out_dir": "checkpoints/distill_v2_salvaged_chat"
+}
