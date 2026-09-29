@@ -53,13 +53,32 @@ _missing_warn = ("[warn] no trained language model yet — fell back to the toy 
                  f"configs/astra5m_prose.json --steps 900 --out {RUN_BASE}")
 
 
+def _checkpoint_config_matches(path: Path, config_path: Path) -> bool:
+    if not path.exists() or path.stat().st_size <= 0:
+        return False
+    try:
+        raw = read_json(str(config_path))
+        expect = int((raw.get("model") or {}).get("vocab_size", 0))
+        if expect <= 0:
+            return True
+        with np.load(path, mmap_mode="r") as data:
+            actual = int(data["w:wte"].shape[0])
+        if actual != expect:
+            print(f"[warn] skipping incompatible checkpoint {path}: vocab {actual} != config vocab {expect} ({config_path})")
+            return False
+        return True
+    except Exception as exc:
+        print(f"[warn] unable to validate checkpoint {path}: {exc}")
+        return False
+
+
 def auto_resolve() -> tuple[str, str]:
     """Return (checkpoint, config) for the best available language model."""
     choices: list[tuple[int, Path, Path]] = []
     # 1st choice: the finished word-level prose model (cleanest, native-English
     # output; supersedes the byte-level BPE models below).
     local = Path(LOCAL_FINAL)
-    if local.exists() and local.stat().st_size > 0:
+    if _checkpoint_config_matches(local, Path(LOCAL_CFG)):
         choices.append((10**10 + 2, local, Path(LOCAL_CFG)))
     # 2nd choice: a self-learned model promoted by the drive-side daemon.
     sl_reg = Path(SELFLEARN_REGISTRY)
@@ -70,19 +89,22 @@ def auto_resolve() -> tuple[str, str]:
             if sha:
                 rec = data["entries"].get(sha)
                 sl_ckpt = Path(rec["path"]) if isinstance(rec, dict) else None
-                if sl_ckpt and sl_ckpt.exists() and sl_ckpt.stat().st_size > 0:
+                if _checkpoint_config_matches(sl_ckpt, Path(PROSE_CFG)):
                     choices.append((10**10 + 1, sl_ckpt, Path(PROSE_CFG)))
         except (OSError, KeyError, TypeError, ValueError):
             pass
     for m in _glob.glob(str(Path(RUN_BASE) / "stage*" / "resumed" / "checkpoint-*.npz")):
-        if Path(m).stat().st_size == 0:
+        p = Path(m)
+        if not _checkpoint_config_matches(p, Path(PROSE_CFG)):
             continue
-        stem = Path(m).stem
+        if p.stat().st_size == 0:
+            continue
+        stem = p.stem
         try:
             step = int(stem.split("-")[1])
         except (IndexError, ValueError):
             continue
-        choices.append((step, Path(m), Path(PROSE_CFG)))
+        choices.append((step, p, Path(PROSE_CFG)))
     if not choices:
         return TOY_CKPT, TOY_CFG
     _, ckpt, cfg = max(choices)
@@ -96,10 +118,10 @@ def chat_resolve() -> tuple[str, str]:
     fine-tune > best language base model.
     """
     word = Path(WORD_CHAT_FINAL)
-    if word.exists() and word.stat().st_size > 0:
+    if _checkpoint_config_matches(word, Path(WORD_CHAT_CFG)):
         return str(word), WORD_CHAT_CFG
     chat = Path(CHAT_FINAL)
-    if chat.exists() and chat.stat().st_size > 0:
+    if _checkpoint_config_matches(chat, Path(CHAT_CFG)):
         return str(chat), CHAT_CFG
     return auto_resolve()
 

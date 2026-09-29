@@ -61,7 +61,17 @@ def load_checkpoint(
     """
     data = np.load(path)
     for name, w, _g in all_params(model):
-        w[:] = data[f"w:{name}"]
+        key = f"w:{name}"
+        if key not in data:
+            raise ValueError(f"checkpoint {path!r} is missing tensor {key!r} for model param {name!r}")
+        ckpt = data[key]
+        if ckpt.shape != w.shape:
+            raise ValueError(
+                f"checkpoint/config mismatch for {name!r}: checkpoint shape {ckpt.shape} "
+                f"does not match model shape {w.shape} (path={path!r}). "
+                "Use a checkpoint trained with the same tokenizer/model config."
+            )
+        w[:] = ckpt
     step, loss_hist, meta = 0, [], {}
     mpath = str(path).rsplit(".npz", 1)[0] + ".manifest.json"
     if Path(mpath).exists():
