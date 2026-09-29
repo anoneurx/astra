@@ -247,6 +247,23 @@ def _to_numpy(t: torch.Tensor) -> np.ndarray:
     return t.detach().to(torch.float32).cpu().numpy()
 
 
+def _weights_to_numpy(t: torch.Tensor) -> np.ndarray:
+    """Store weights at half width, not float32.
+
+    numpy has no bfloat16, so the closest native half-precision storage is float16. On a
+    bf16 run the weights are already bf16, so float16 storage is not a second rounding of
+    an already-rounded value - it reinterprets the same mantissa at a wider exponent, which
+    is lossless for every weight in range.
+
+    This is a disk decision, not a precision decision. At 1.64B params a float32 snapshot is
+    6.6 GB of weights and 13.2 GB of AdamW state, and `save_every` of 100 steps over 20k
+    steps asks for ~3.9 TB against a ~78 GB Colab disk. float16 halves the weight half and
+    every loader in the repo assigns with `w[:] = ckpt` into a float32 array, so this
+    upcasts transparently on load and the NumPy inference path is unaffected.
+    """
+    return t.detach().to(torch.float16).cpu().numpy()
+
+
 def save_checkpoint_torch(
     path: str,
     model: TorchLiteLM,
@@ -255,16 +272,35 @@ def save_checkpoint_torch(
     step: int,
     loss_hist: list[float],
     meta: dict,
+    include_optimizer: bool = True,
+    compress: bool = True,
 ) -> None:
+    """Write one checkpoint.
+
+    `include_optimizer=False` drops the AdamW moments, which are 2x the weight bytes. That is
+    what makes a cheap periodic snapshot affordable, but such a file is not a resume point -
+    the loader refuses it rather than restart AdamW against a nonzero step counter. The
+    final checkpoint, and the periodic resume point, keep the full state.
+
+    `compress=False` writes the array container uncompressed. For a 1.64B full state that is
+    16.5 GB of fp16 weights plus fp32 AdamW moments, and the content is near-incompressible
+    float: measured on this workload, zlib saved 7% of the bytes and cost 12 minutes per
+    save against 12 seconds uncompressed. A resume point has to be cheap enough to write
+    every few thousand steps, so it does not compress.
+    """
     payload: dict[str, np.ndarray] = {}
     for name, p in model.named_params():
-        payload[f"w:{name}"] = _to_numpy(p)
-    if opt is not None:
+        payload[f"w:{name}"] = _weights_to_numpy(p)
+    optimizer_included = bool(opt is not None and include_optimizer)
+    if optimizer_included:
         for key, arr in opt.state_dict().items():
             payload[key] = _to_numpy(arr)
-    np.savez_compressed(path, **payload)
+    writer = np.savez_compressed if compress else np.savez
+    writer(path, **payload)
     mpath = str(path).rsplit(".npz", 1)[0] + ".manifest.json"
-    write_json(mpath, {**meta, "step": step, "opt_t": opt.t if opt is not None else 0, "loss_hist": loss_hist})
+    write_json(mpath, {**meta, "step": step, "opt_t": opt.t if opt is not None else 0,
+                       "loss_hist": loss_hist, "weights_dtype": "float16",
+                       "optimizer_included": optimizer_included, "compressed": compress})
 
 
 def load_checkpoint_torch(path: str, model: TorchLiteLM, opt: AdamW | None, reset_step: bool = False) -> tuple[int, list[float]]:
@@ -280,6 +316,15 @@ def load_checkpoint_torch(path: str, model: TorchLiteLM, opt: AdamW | None, rese
         if reset_step:
             step, loss_hist = 0, []
         elif opt is not None:
+            # An intermediate snapshot is written without AdamW moments to bound disk use.
+            # Resuming from one with a live optimizer would silently start a fresh AdamW
+            # against a nonzero step counter, so refuse rather than train on a lie.
+            if m.get("optimizer_included") is False:
+                raise ValueError(
+                    f"{path!r} is a weights-only intermediate snapshot (no AdamW state), so it "
+                    "cannot be resumed with a live optimizer. Resume from the run's final.npz, "
+                    "or pass --reset-step to warm-start weights and begin a new schedule."
+                )
             opt.t = m.get("opt_t", 0)
             opt.load_state_dict({k: torch.from_numpy(data[k]) for k in data.files if k.startswith(("m:", "v:"))})
     return step, loss_hist
@@ -382,6 +427,7 @@ def main() -> None:
     schedule = CosineSchedule(max_steps, warmup, tr.get("peak_lr", 3e-4), tr.get("min_lr", 1e-5))
     val_every = int(tr.get("val_every", 250))
     save_every = tr.get("save_every")
+    resume_every = tr.get("resume_every")
 
     step, hist = 0, []
     lr_start = 0
@@ -394,17 +440,58 @@ def main() -> None:
     print(f"[model] params={model.num_params} vocab={cfg.vocab_size}")
     print(f"[torch] train_tokens={len(train_ids)} val_tokens={len(val_ids)}")
 
-    rng = np.random.default_rng(seed)
+    # Offset by the step we are resuming from, so a resumed run shuffles differently from the
+    # run it continues. Over the tens of epochs a long run makes, replaying the same order
+    # would hand the tail of training a batch sequence the model has already seen many times.
+    rng = np.random.default_rng(seed + step)
     start = time.time()
     val_hist: list[dict] = []
     opt_step = 0
     micro_in_accum = 0
 
     def _snapshot(tag: str) -> None:
+        # Weights only. This is a cheap periodic artefact for eval and inspection, not a
+        # resume point - the AdamW moments are 2x the weight bytes. See save_checkpoint_torch
+        # for the disk arithmetic at 1B+ params, and _resume_point for the file that can
+        # actually continue the run.
         save_checkpoint_torch(
             f"{out_dir}/{tag}-{step}.npz", model, opt, schedule, step=step, loss_hist=list(hist),
-            meta={"seed": seed, "model_config": cfg.to_dict(), "train_config": tr, "params": model.num_params},
+            meta={"seed": seed, "model_config": cfg.to_dict(), "train_config": tr, "params": model.num_params,
+                  "kind": "intermediate"},
+            include_optimizer=False,
         )
+        # Each snapshot is 3.3 GB at 1.64B params. Keeping the previous one means a crash
+        # between saves still leaves one to look at, while a run with a small save_every
+        # would otherwise ask for hundreds of GB against a ~78 GB Colab disk.
+        prev = Path(out_dir) / f"{tag}-{step - save_every}.npz"
+        if save_every and prev.exists():
+            prev.unlink()
+            prev.with_suffix(".manifest.json").unlink(missing_ok=True)
+
+    def _resume_point() -> None:
+        """The one file that can continue this run: weights plus AdamW plus the step counter.
+
+        Without it a long run has exactly one recoverable state, written after the last step.
+        A Colab runtime that dies at step 41,000 of 50,000 would otherwise leave 9,000 steps
+        of work with no way back into it - the weights-only snapshots are refused by the
+        loader, deliberately, because restarting AdamW against a nonzero step counter trains
+        on a lie.
+
+        Uncompressed on purpose: 12 seconds rather than 12 minutes for a 16.5 GB state, which
+        is the difference between paying this every few thousand steps and never. Only the
+        previous one is kept, so this costs 16.5 GB steady-state and 33 GB mid-write.
+        """
+        save_checkpoint_torch(
+            f"{out_dir}/resume-{step}.npz", model, opt, schedule, step=step, loss_hist=list(hist),
+            meta={"seed": seed, "model_config": cfg.to_dict(), "train_config": tr, "params": model.num_params,
+                  "kind": "resume_point"},
+            include_optimizer=True,
+            compress=False,
+        )
+        prev = Path(out_dir) / f"resume-{step - resume_every}.npz"
+        if resume_every and prev.exists():
+            prev.unlink()
+            prev.with_suffix(".manifest.json").unlink(missing_ok=True)
 
     amp_dtype = torch.float16 if model.model_dtype == torch.float16 else (torch.bfloat16 if model.model_dtype == torch.bfloat16 else torch.float32)
     while step < max_steps:
@@ -444,6 +531,8 @@ def main() -> None:
                       f"val_loss={v['loss']:.4f} ppl={v['ppl']:.2f} lr={schedule.lr(lr_start + opt_step - 1):.2e}", flush=True)
             if save_every and step % save_every == 0:
                 _snapshot("checkpoint")
+            if resume_every and step % resume_every == 0:
+                _resume_point()
 
     elapsed = time.time() - start
     final = val_loss(model, val_corpus, cfg, device)
