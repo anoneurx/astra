@@ -85,10 +85,21 @@ def test_every_category_is_populated(corpus_records):
 
 
 def test_deterministic_from_seed():
-    """Regenerating must reproduce the corpus byte for byte, or runs are not comparable."""
-    a = [json.dumps(r, sort_keys=True) for r, _ in corpus.build_corpus(200, seed=99)]
-    b = [json.dumps(r, sort_keys=True) for r, _ in corpus.build_corpus(200, seed=99)]
+    """Regenerating must reproduce the corpus, or runs are not comparable."""
+    a = _serialise([r for r, _ in corpus.build_corpus(200, seed=99)])
+    b = _serialise([r for r, _ in corpus.build_corpus(200, seed=99)])
     assert a == b
+
+
+def test_only_created_at_varies_between_runs():
+    """Pins down the limit of the reproducibility claim: the generation clock moves, the
+    records do not. Without this, "deterministic" quietly means "usually identical"."""
+    a = [r for r, _ in corpus.build_corpus(50, seed=99)]
+    b = [r for r, _ in corpus.build_corpus(50, seed=99)]
+    differing = {k for x, y in zip(a, b) for k in set(x) | set(y) if x.get(k) != y.get(k)}
+    assert differing <= {'created_at'}
+    for r in a:
+        assert r['created_at'].endswith('Z')
 
 
 def test_different_seeds_give_different_corpora():
@@ -182,3 +193,91 @@ def test_records_serialise_to_one_line(corpus_records):
         line = json.dumps(r, ensure_ascii=False)
         assert '\n' not in line
         assert json.loads(line) == r
+
+
+def _serialise(records):
+    """Everything except the generation clock.
+
+    created_at is a wall-clock timestamp, so it is the one field that cannot be reproduced.
+    Compare it separately in test_only_created_at_varies_between_runs.
+    """
+    return [json.dumps({k: v for k, v in r.items() if k != 'created_at'}, sort_keys=True)
+            for r in records]
+
+
+def test_resume_continues_the_walk_rather_than_restarting_it():
+    """An interrupted run must not re-emit its own prefix.
+
+    The notebook appends, so a resume that replays from the start would double every record
+    already on disk and restart the ids at s000001. Both are silent: the file still parses and
+    the count still reaches the target.
+    """
+    whole = [r for r, _ in corpus.build_corpus(1000, seed=4242)]
+    cut = 400
+    keys = {r['dedup_key'] for r in whole[:cut]}
+    state = {}
+    rest = [r for r, _ in corpus.build_corpus(1000, seed=4242, existing_keys=keys,
+                                              existing_count=cut, state=state)]
+    assert state['skipped'] == cut
+    assert len(rest) == 600
+
+
+def test_resumed_corpus_equals_a_single_pass():
+    """The point of the replay: two runs must not be distinguishable from one."""
+    whole = [r for r, _ in corpus.build_corpus(800, seed=777)]
+    for cut in (1, 137, 400, 799):
+        keys = {r['dedup_key'] for r in whole[:cut]}
+        rest = [r for r, _ in corpus.build_corpus(800, seed=777, existing_keys=keys,
+                                                  existing_count=cut)]
+        assert _serialise(whole[:cut] + rest) == _serialise(whole), 'diverged at cut %d' % cut
+
+
+def test_resume_preserves_record_ids():
+    whole = [r for r, _ in corpus.build_corpus(600, seed=31)]
+    keys = {r['dedup_key'] for r in whole[:250]}
+    rest = [r for r, _ in corpus.build_corpus(600, seed=31, existing_keys=keys,
+                                              existing_count=250)]
+    ids = [r['id'] for r in whole[:250] + rest]
+    assert ids == [r['id'] for r in whole]
+    assert len(set(ids)) == len(ids)
+
+
+def test_resume_preserves_the_class_mix():
+    """Skipped rows must still count toward the quotas, or a resumed corpus skews."""
+    whole = [r for r, _ in corpus.build_corpus(1000, seed=55)]
+    keys = {r['dedup_key'] for r in whole[:600]}
+    rest = [r for r, _ in corpus.build_corpus(1000, seed=55, existing_keys=keys,
+                                              existing_count=600)]
+    mix = collections.Counter(r['classification'] for r in whole[:600] + rest)
+    assert mix == collections.Counter(r['classification'] for r in whole)
+    for cls, n in mix.items():
+        assert n / len(whole) <= MAX_CLASS_SHARE, '%s at %.1f%%' % (cls, 100.0 * n / len(whole))
+
+
+def test_resume_never_exceeds_the_target():
+    whole = [r for r, _ in corpus.build_corpus(500, seed=88)]
+    keys = {r['dedup_key'] for r in whole}
+    state = {}
+    extra = list(corpus.build_corpus(500, seed=88, existing_keys=keys,
+                                     existing_count=len(whole), state=state))
+    assert extra == []
+    assert state['emitted'] == 0
+
+
+def test_resume_with_unrelated_existing_rows_counts_them():
+    """A corpus the walk cannot reproduce still occupies quota, so the mix stays honest."""
+    state = {}
+    rest = [r for r, _ in corpus.build_corpus(1000, seed=61,
+                                              existing_keys={'distill:nonexistent'},
+                                              existing_count=100,
+                                              existing_filled={'Normal behavior': 100},
+                                              state=state)]
+    assert len(rest) == 900
+    assert state['skipped'] == 0, 'nothing should have matched'
+
+
+def test_state_reports_counters():
+    state = {}
+    list(corpus.build_corpus(300, seed=12, state=state))
+    assert state['emitted'] == 300
+    assert set(state) >= {'emitted', 'skipped', 'produced', 'rejects', 'filled', 'quotas'}

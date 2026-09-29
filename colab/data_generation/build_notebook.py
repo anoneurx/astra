@@ -91,42 +91,73 @@ def mirror_to_drive():
             shutil.copy2(src, os.path.join(DRIVE_ROOT, fname))
 
 
-# Resuming means appending to whatever is already there rather than starting over.
-already = 0
+# Resuming means continuing the same walk, not starting a second one over the top of it.
+# The generator is deterministic from SEED, so it replays what is already on disk, skips
+# those rows and carries on - a corpus finished across two runs is identical to one built
+# in a single run. A restart would instead re-emit the prefix it already has, duplicating
+# every record and every id.
+existing_keys = set()
+existing_count = 0
+existing_filled = {}
 if os.path.exists(RECORDS) and os.path.getsize(RECORDS) > 0:
     with open(RECORDS, encoding='utf-8') as fh:
         for line in fh:
-            if line.strip():
-                already += 1
-    print('resuming: %d records already on disk' % already)
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            existing_count += 1
+            if rec.get('dedup_key'):
+                existing_keys.add(rec['dedup_key'])
+            if rec.get('source') == 'astra_v4_engine':
+                continue
+            # A row the walk cannot reproduce (an older corpus, a different seed). Count it
+            # toward the quota so the finished corpus still lands on the intended mix.
+            cat = rec.get('category')
+            if cat:
+                existing_filled[cat] = existing_filled.get(cat, 0) + 1
+    print('resuming: %d records on disk, %d keys to skip' % (existing_count, len(existing_keys)))
 else:
     print('starting fresh: no records.jsonl yet')
-print('target %d, generating %d more' % (TARGET_SAMPLES, max(0, TARGET_SAMPLES - already)))
+print('target %d, generating %d more' % (TARGET_SAMPLES, max(0, TARGET_SAMPLES - existing_count)))
 '''
 
 RUN = '''
+state = {}
 t0 = time.time()
-written = already
+written = existing_count
 with open(RECORDS, 'a', encoding='utf-8') as sink:
-    for rec, produced in build_corpus(max(0, TARGET_SAMPLES - already), seed=SEED):
+    for rec, produced in build_corpus(TARGET_SAMPLES, seed=SEED,
+                                      existing_keys=existing_keys,
+                                      existing_count=existing_count,
+                                      existing_filled=existing_filled,
+                                      state=state):
         sink.write(json.dumps(rec, ensure_ascii=False) + '\\n')
         written += 1
         if written % MIRROR_EVERY == 0:
             sink.flush()
             mirror_to_drive()
-            rate = (written - already) / max(1e-6, time.time() - t0)
+            rate = (written - existing_count) / max(1e-6, time.time() - t0)
             print('  %7d records  (%.0f/s)' % (written, rate))
 
 elapsed = time.time() - t0
 print()
 print('wrote %d records in %.1fs  ->  %s' % (written, elapsed, RECORDS))
+if existing_count and not state.get('skipped'):
+    print('note: none of the %d existing records matched this seed, so they are kept as-is '
+          'and the class mix will not be the planned one. Start from an empty records.jsonl '
+          'for a clean corpus.' % existing_count)
 mirror_to_drive()
 
-by_cat = Counter(r['category'] for r in (json.loads(l) for l in open(RECORDS, encoding='utf-8') if l.strip()))
+rows = [json.loads(l) for l in open(RECORDS, encoding='utf-8') if l.strip()]
 print()
-for name, n in by_cat.most_common():
+for name, n in Counter(r['category'] for r in rows).most_common():
     print('  %-30s %6d' % (name, n))
-print('  %-30s %6d' % ('TOTAL', sum(by_cat.values())))
+print('  %-30s %6d' % ('TOTAL', len(rows)))
+ids = [r['id'] for r in rows]
+print('unique ids: %d of %d' % (len(set(ids)), len(ids)))
 '''
 
 cells = [
@@ -155,7 +186,8 @@ this notebook builds the log stream and the answer together from one random seed
 * `early_warning` is a function of `classification`, which removes an entire class of
   inconsistency the teacher data was full of;
 * `hardness` is a function of `risk`, checked by the audit;
-* the **corpus is reproducible** from `SEED`, and regenerating it produces the same bytes.
+* the **corpus is reproducible** from `SEED` — regenerate it and you get the same records,
+  field for field, apart from the `created_at` wall-clock stamp.
 
 ## What makes the data worth training on
 
@@ -212,8 +244,13 @@ sentence, giving thousands of distinct analyses while leaving the reasoning inta
     md('''
 ## 5. Generate
 
-Walks the grid until every category quota is met, deduplicating on the exact input text. Safe
-to re-run: it appends, and it reports what it resumed from.
+Walks the grid until every category quota is met, deduplicating on the exact input text.
+
+**Safe to re-run.** The walk is deterministic from `SEED`, so an interrupted run is continued
+rather than restarted: the generator replays the prefix already on disk, skips those rows and
+carries on from there. A corpus finished in two runs matches one built in a single run, ids and
+class mix included — only the `created_at` stamps differ, since those record when the row was
+generated. Restarting from scratch would re-emit the prefix and duplicate every row.
 '''),
     code(strip_imports(corpus) + RUN),
     md('''
