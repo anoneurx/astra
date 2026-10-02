@@ -15,8 +15,13 @@ Usage:
     python inference/generate.py --checkpoint checkpoints/name/resumed/final.npz \
         --config configs/toy_name.json
     python inference/generate.py --temperature 0.8
+    python inference/generate.py --tools . --chat
 
 Type your prompt and press Enter. Astra responds. Type 'quit' or Ctrl-C to exit.
+
+With --tools DIR, Astra can read files: each reply may contain a tool call, the
+result is fed back, and Astra gets another turn to answer with what it found.
+File access is confined to DIR.
 """
 
 from __future__ import annotations
@@ -143,6 +148,14 @@ def main() -> None:
     ap.add_argument("--memory-embedder", default="hash", choices=["hash", "litelm"])
     ap.add_argument("--memory-budget-tokens", type=int, default=192)
     ap.add_argument("--memory-k", type=int, default=5)
+    ap.add_argument("--tools", default=None, metavar="DIR",
+                    help="let Astra read files: enables read_file, search_text and "
+                         "find_files confined to DIR (no tool argument can change "
+                         "the root)")
+    ap.add_argument("--tool-max-steps", type=int, default=4,
+                    help="tool round trips allowed per reply")
+    ap.add_argument("--tool-max-new", type=int, default=192,
+                    help="tokens generated per turn while tools are enabled")
     args = ap.parse_args()
 
     if not args.checkpoint:
@@ -165,9 +178,46 @@ def main() -> None:
     print(f"Astra loaded (step {step}, {model.num_params} params)")
     print(f"Checkpoint: {args.checkpoint}")
     print(f"Temperature: {args.temperature}" + (f" | memory: {args.memory}" if memory else ""))
-    print()
 
     rng = np.random.default_rng(args.seed)
+
+    def generate_once(prompt_text: str) -> str:
+        """Sample one reply from an already-framed prompt.
+
+        Tool mode hands over the whole transcript, so the You/Astra framing is
+        applied by AgentSession rather than here; wrapping it twice would repeat
+        the role markers on every round trip.
+        """
+        ids = tok.encode(prompt_text)
+        if len(ids) < 1:
+            return ""
+        gen_ids = decode(
+            model, ids, args.tool_max_new if args.tools else args.max_new,
+            temperature=args.temperature,
+            rng=rng,
+            top_k=args.top_k,
+            cache=KVCache(model.cfg),
+            rep_penalty=args.rep_penalty,
+            forbidden=set(range(tok.num_special)),
+        )
+        try:
+            return tok.decode(gen_ids)
+        except (UnicodeDecodeError, KeyError):
+            return "".join(chr(b) if 32 <= b < 127 else "." for b in
+                           b"".join(tok.id_to_piece.get(i, b"?") for i in gen_ids))
+
+    agent = None
+    if args.tools:
+        from astra.tools import AgentSession, RootJail, ToolRegistry, make_file_tools
+
+        registry = ToolRegistry(make_file_tools(RootJail(args.tools)))
+        agent = AgentSession(
+            registry, generate_once,
+            max_steps=args.tool_max_steps,
+            max_new=args.tool_max_new,
+        )
+        print(f"Tools: {', '.join(s.name for s in registry.specs)} (root {args.tools})")
+    print()
 
     while True:
         try:
@@ -190,6 +240,18 @@ def main() -> None:
                 print(f"  [memory] {len(block.included)} recalled: "
                       + ", ".join(h.record.id for h in block.included))
                 text = block.prepend(prompt)
+        if agent is not None:
+            # AgentSession owns the framing and the transcript from here: it
+            # appends each result and regenerates, so this turn can be several
+            # model calls rather than one.
+            turn = agent.ask(text)
+            for call, payload in zip(turn.calls, turn.results):
+                print(f"  [tool] {call.name} -> {payload[:200]}")
+            if turn.exhausted:
+                print(f"  [tool] gave up after {turn.steps} call(s) with no reply yet")
+            print(f"Astra: {turn.text}")
+            print()
+            continue
         if args.chat:
             # Chat format seen at training time: "You: <ask>\nAstra:" then the
             # decoder continues with Astra's reply.

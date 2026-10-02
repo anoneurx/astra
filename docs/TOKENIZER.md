@@ -41,10 +41,24 @@
 | `<unk>` | Reserved legacy; should be unused by construction |
 | `<|user|>` / `<|assistant|>` | Chat/conversation framing (Phase 5+) |
 | `<|memory|>` | Memory-context framing (Phase 4+) |
-| `<|tool|>` | Tool-use framing (research, Phase 9) |
+| `<|tool|>` | Not used. Tool framing is plain text; see below. |
 | `<reserved N>` | Reallocation buffer for future specials |
 
 Special tokens are non-splittable, excluded from merges, and enumerated by ID in the tokenizer config.
+
+The `<|…|>` rows above describe intent, not capability. `WordLevel` splits on
+`[A-Za-z0-9']+| |\n|.`, so a string like `<|tool|>` is cut into separate
+characters and any of them the vocabulary lacks becomes `<unk>`; the sampler
+forbids special ids, so a token that would render as `<unk>` can never be
+emitted at all. Adding a special token to an already-trained artifact is not
+possible today — `num_special` is fixed at 4 by both tokenizer classes.
+
+Tool framing therefore uses plain text (`tool read_file {"path": "…"}`), and the
+words it needs are constrained by the vocabulary rather than chosen freely:
+`grep`, `glob`, `offset` and `max_matches` are all absent from the prose-built
+artifact, which is why the tools are named `search_text` and `find_files` and take
+`start` and `limit`. `tests/test_agent_tools.py` fails if a tool or argument is
+renamed into a word the tokenizer cannot spell.
 
 ### 2.3 Encoding
 
