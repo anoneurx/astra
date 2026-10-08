@@ -1,0 +1,46 @@
+{
+  "model": {
+    "architecture": "decoder_transformer",
+    "vocab_size": 16384,
+    "hidden_size": 768,
+    "num_layers": 20,
+    "num_heads": 12,
+    "num_kv_heads": 12,
+    "intermediate_size": 3072,
+    "max_sequence_length": 2048,
+    "dropout": 0.0,
+    "tie_embeddings": true
+  },
+  "training": {
+    "batch_size": 4,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 3e-4,
+    "weight_decay": 0.05,
+    "warmup_steps": 200,
+    "max_steps": 50000,
+    "precision": "bf16",
+    "gradient_checkpointing": true,
+    "checkpoint_interval": 1000,
+    "evaluation_interval": 500,
+    "experiment_store": "experiments/runs"
+  },
+  "data": {
+    "train_dataset": "datasets/cyber/train.txt",
+    "validation_dataset": "datasets/cyber/val.txt",
+    "test_dataset": "datasets/cyber/test21.txt"
+  },
+  "security": {
+    "task_weights": {
+      "classification": 1.0,
+      "risk_estimation": 1.0,
+      "anomaly_detection": 1.2,
+      "sequence_analysis": 1.5,
+      "early_warning": 2.0,
+      "evidence_extraction": 1.0,
+      "security_explanation": 1.0
+    },
+    "risk_labels": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+    "sequence_window": 64
+  },
+  "out_dir": "checkpoints/astra_200m"
+}
