@@ -2,7 +2,7 @@
   "model": {
     "vocab_size": 8192,
     "d_model": 2048,
-    "n_layers": 24,
+    "n_layers": 18,
     "n_heads": 32,
     "d_head": 64,
     "d_ffn": 8192,
