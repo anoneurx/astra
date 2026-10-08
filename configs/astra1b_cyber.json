@@ -2,7 +2,7 @@
   "model": {
     "vocab_size": 8192,
     "d_model": 2048,
-    "n_layers": 18,
+    "n_layers": 24,
     "n_heads": 32,
     "d_head": 64,
     "d_ffn": 8192,
@@ -38,6 +38,6 @@
   "out_dir": "checkpoints/astra1b_cyber",
   "safety": {
     "leak_check": false,
-    "note": "1.2B param model on cyber corpus optimized for H100 80GB VRAM."
+    "note": "1.6B param model on cyber corpus optimized for H100 80GB VRAM."
   }
 }
